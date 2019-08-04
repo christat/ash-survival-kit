@@ -1,6 +1,20 @@
-use std::{error::Error, fmt};
+use std::{
+    default::Default,
+    error::Error,
+    ffi::CString,
+    fmt,
+    ptr
+};
 
-// Cross-platform window management crate; handles event loop and provides raw window handle for Vulkan.
+extern crate ash;
+use ash::{
+    vk,
+    Entry,
+    Instance,
+    version::{EntryV1_0, InstanceV1_0},
+};
+
+extern crate winit;
 use winit::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
@@ -19,12 +33,13 @@ impl HelloTriangleApplication {
         Self {}
     }
 
-    pub fn run (&mut self) -> Result<u8, RunError> {
+    pub fn run (&mut self) -> Result<(), Box<dyn Error>> {
         let (event_loop, window) = self.init_window();
-        self.init_vulkan();
+        let instance= self.init_vulkan();
+
         self.main_loop(event_loop, window);
-        self.cleanup();
-        Err(RunError)
+        self.cleanup(instance);
+        Ok(())
     }
 
     fn init_window(&mut self) -> (EventLoop<()>, Window) {
@@ -40,8 +55,34 @@ impl HelloTriangleApplication {
         }
     }
 
-    fn init_vulkan(&self) {
+    fn init_vulkan(&self) -> Instance {
+        let instance_result = self.create_vk_instance();
+        match instance_result {
+            Ok((_entry, instance)) => instance,
+            Err(e) => panic!("Failed to create Vulkan instance: {}", e)
+        }
+    }
 
+    fn create_vk_instance(&self) -> Result<(Entry, Instance), Box<dyn Error>> {
+        let application_name = CString::new("Hello triangle").unwrap();
+        let engine_name = CString::new("No engine").unwrap();
+        let version = ash::vk_make_version!(1, 0, 0);
+
+        let application_info = vk::ApplicationInfo::builder()
+            .application_name(&application_name)
+            .application_version(version)
+            .engine_name(&engine_name)
+            .engine_version(version)
+            .api_version(version)
+            .build();
+
+        let instance_create_info = vk::InstanceCreateInfo::builder()
+            .application_info(&application_info)
+            .build();
+
+        let entry= Entry::new()?;
+        let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
+        Ok((entry, instance))
     }
 
     fn main_loop(&mut self, event_loop: EventLoop<()>, window: Window) {
@@ -56,29 +97,16 @@ impl HelloTriangleApplication {
         });
     }
 
-    fn cleanup(&self) {
-
+    fn cleanup(&self, instance: Instance) {
+        unsafe { instance.destroy_instance(None) };
     }
 }
-
-#[derive(Debug, PartialEq)]
-pub struct RunError;
-
-impl Error for RunError{}
-
-impl fmt::Display for RunError
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Something went horribly wrong! :scream_cat:")
-    }
-}
-
 
 fn main() {
     let mut app = HelloTriangleApplication::new();
     let status = app.run();
     match status {
-        Ok(code) => println!("Sall good man, code was {}", code),
-        Err(e) => println!("Error: {}", e)
+        Ok(_) => (),
+        Err(e) => panic!("Application crashed! Trace: {}", e)
     }
 }
