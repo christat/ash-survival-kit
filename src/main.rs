@@ -49,7 +49,7 @@ impl HelloTriangleApplication {
         let (entry, instance) = Self::init_vulkan();
         let (debug_utils, debug_utils_messenger_ext) =
             Self::setup_debug_messenger(&entry, &instance);
-        let physical_device = Self::select_physical_device(&entry, &instance);
+        let physical_device = Self::select_physical_device(&instance);
         Self {
             entry,
             instance,
@@ -177,18 +177,16 @@ impl HelloTriangleApplication {
         p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
         p_user_data: *mut c_void,
     ) -> vk::Bool32 {
-        unsafe {
             eprintln!(
                 "validation layer: {}",
                 CStr::from_ptr((*p_callback_data).p_message)
                     .to_str()
                     .unwrap()
             );
-        }
         vk::FALSE
     }
 
-    fn select_physical_device(entry: &Entry, instance: &Instance) {
+    fn select_physical_device(instance: &Instance) {
         let physical_devices = unsafe {
             instance
                 .enumerate_physical_devices()
@@ -199,46 +197,42 @@ impl HelloTriangleApplication {
             panic!("No physical devices with Vulkan support!");
         }
 
-        let (_score, selected_device) = physical_devices
+        let selected_device = physical_devices
             .into_iter()
             .filter_map(|device| {
-                let score = Self::get_physical_device_score(instance, device);
-                if score > 0 {
-                    Some((score, Some(device)))
+                if Self::is_physical_device_suitable(instance, device) {
+                    Some(device)
                 } else {
                     None
                 }
-            })
-            .fold((0, None), |(acc_score, acc_device), (score, device)| {
-                if score > acc_score {
-                    (score, device)
-                } else {
-                    (acc_score, acc_device)
-                }
-            });
+            }).collect::<Vec<vk::PhysicalDevice>>();
 
-        if selected_device.is_none() {
+        if selected_device.len() == 0 {
             panic!("No suitable devices found!")
         }
     }
 
-    fn get_physical_device_score(instance: &Instance, device: vk::PhysicalDevice) -> u32 {
-        let device_properties = unsafe { instance.get_physical_device_properties(device) };
-        let device_features = unsafe { instance.get_physical_device_features(device) };
+    fn is_physical_device_suitable(instance: &Instance, device: vk::PhysicalDevice) -> bool {
+        let queue_family_index = Self::get_physical_device_queue_families(instance, device);
+        queue_family_index.is_some()
+    }
 
-        // Application can't function without geometry shaders
-        if device_features.geometry_shader == 0 {
-            return 0;
+    fn get_physical_device_queue_families(instance: &Instance, device: vk::PhysicalDevice) -> Option<usize> {
+        let queue_families_properties = unsafe { instance.get_physical_device_queue_family_properties(device) };
+        let queue_families_indices = 0..queue_families_properties.len();
+        let queue_family_indices = queue_families_properties.into_iter().zip(queue_families_indices).flat_map(|(queue_family, index)| {
+            if queue_family.queue_count > 0 && queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS) {
+                Some(index)
+            } else {
+                None
+            }
+        }).collect::<Vec<usize>>();
+
+        if queue_family_indices.len() == 0 {
+            None
+        } else {
+            Some(queue_family_indices[0])
         }
-
-        let mut score = 0;
-        // Discrete GPUs have a significant performance advantage
-        if device_properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
-            score += 1000
-        };
-        // Maximum possible size of textures affects graphics quality
-        score += device_properties.limits.max_image_dimension2_d;
-        score
     }
 
     fn main_loop(&mut self) {
