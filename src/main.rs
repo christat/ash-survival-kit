@@ -8,6 +8,7 @@ use std::{
 
 extern crate ash;
 use ash::{
+    Device,
     extensions::{
         ext::DebugUtils,
         khr::{Surface, Win32Surface},
@@ -28,6 +29,7 @@ use winit::{
 
 mod utils;
 use utils::debugging;
+use ash::version::DeviceV1_0;
 
 #[cfg(debug_assertions)]
 const ENABLE_VALIDATION_LAYERS: bool = true;
@@ -42,6 +44,7 @@ struct HelloTriangleApplication {
     instance: Instance,
     debug_utils: DebugUtils,
     debug_utils_messenger_ext: vk::DebugUtilsMessengerEXT,
+    device: Device
 }
 
 impl HelloTriangleApplication {
@@ -50,11 +53,16 @@ impl HelloTriangleApplication {
         let (debug_utils, debug_utils_messenger_ext) =
             Self::setup_debug_messenger(&entry, &instance);
         let physical_device = Self::select_physical_device(&instance);
+        let (device, queue_family_index) = Self::create_logical_device(&instance, physical_device);
+
+        let graphics_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
+
         Self {
             entry,
             instance,
             debug_utils,
             debug_utils_messenger_ext,
+            device
         }
     }
 
@@ -186,7 +194,7 @@ impl HelloTriangleApplication {
         vk::FALSE
     }
 
-    fn select_physical_device(instance: &Instance) {
+    fn select_physical_device(instance: &Instance) -> vk::PhysicalDevice {
         let physical_devices = unsafe {
             instance
                 .enumerate_physical_devices()
@@ -210,6 +218,8 @@ impl HelloTriangleApplication {
         if selected_device.len() == 0 {
             panic!("No suitable devices found!")
         }
+
+        selected_device[0]
     }
 
     fn is_physical_device_suitable(instance: &Instance, device: vk::PhysicalDevice) -> bool {
@@ -233,6 +243,36 @@ impl HelloTriangleApplication {
         } else {
             Some(queue_family_indices[0])
         }
+    }
+
+    fn create_logical_device(instance: &Instance, physical_device: vk::PhysicalDevice) -> (ash::Device, u32) {
+        let queue_family_index = Self::get_physical_device_queue_families(instance, physical_device).expect("No queue families contain required flags!") as u32;
+        let queue_priorities: [f32; 1] = [1.0];
+
+        let queue_create_infos = [vk::DeviceQueueCreateInfo::builder()
+            .queue_family_index(queue_family_index)
+            .queue_priorities(&queue_priorities)
+            .build()];
+
+        let device_features = vk::PhysicalDeviceFeatures::builder().build();
+
+        // variables below in main function body to prevent getting destroyed before entry.create_instance()
+        let enabled_layer_names = debugging::get_enabled_layer_names();
+        let enabled_layer_names: Vec<*const c_char> = enabled_layer_names
+            .iter()
+            .map(|layer_name| layer_name.as_ptr())
+            .collect();
+
+        let mut create_info_builder = vk::DeviceCreateInfo::builder()
+            .queue_create_infos(&queue_create_infos)
+            .enabled_features(&device_features);
+        if ENABLE_VALIDATION_LAYERS {
+            create_info_builder = create_info_builder.enabled_layer_names(&enabled_layer_names);
+        }
+        let create_info = create_info_builder.build();
+
+        let device = unsafe { instance.create_device(physical_device, &create_info, None).expect("Failed to create logical device!") };
+        (device, queue_family_index)
     }
 
     fn main_loop(&mut self) {
