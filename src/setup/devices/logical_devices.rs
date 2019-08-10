@@ -11,11 +11,14 @@ use ash::{
 };
 
 use super::device_utils;
-use crate::utils::debugging;
+use crate::{
+    setup::extensions,
+    utils::debugging,
+};
 
 pub fn create_logical_device(instance: &Instance, physical_device: vk::PhysicalDevice, surface: &Surface, surface_khr: vk::SurfaceKHR, enable_validation_layers: bool) -> (ash::Device, device_utils::QueueFamilyIndices) {
     let queue_family_indices = device_utils::get_physical_device_queue_family_indices(instance, physical_device, surface, surface_khr).expect("No queue families contain required flags!");
-    let unique_queue_family_indices: HashSet<u32> = [queue_family_indices.graphics.unwrap(), queue_family_indices.presentation.unwrap()].iter().cloned().collect();
+    let unique_queue_family_indices: HashSet<u32> = [queue_family_indices.graphics, queue_family_indices.presentation].iter().cloned().collect();
     let queue_priorities: [f32; 1] = [1.0];
 
     let queue_create_infos = unique_queue_family_indices.into_iter().map(|index| vk::DeviceQueueCreateInfo::builder()
@@ -31,10 +34,12 @@ pub fn create_logical_device(instance: &Instance, physical_device: vk::PhysicalD
         .iter()
         .map(|layer_name| layer_name.as_ptr())
         .collect();
+   let enabled_extension_names = extensions::get_required_device_extensions();
 
     let mut create_info_builder = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_create_infos)
-        .enabled_features(&device_features);
+        .enabled_features(&device_features)
+        .enabled_extension_names(&enabled_extension_names);
     if enable_validation_layers {
         create_info_builder = create_info_builder.enabled_layer_names(&enabled_layer_names);
     }

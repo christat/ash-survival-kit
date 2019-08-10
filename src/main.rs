@@ -50,8 +50,8 @@ impl HelloTriangleApplication {
         let (device, queue_family_indices) = logical_devices::create_logical_device(&instance, physical_device, &surface, surface_khr, enable_validation_layers);
 
         unsafe {
-            let _graphics_queue = device.get_device_queue(queue_family_indices.graphics.unwrap(), 0);
-            let _presentation_queue = device.get_device_queue(queue_family_indices.presentation.unwrap(), 0);
+            let _graphics_queue = device.get_device_queue(queue_family_indices.graphics, 0);
+            let _presentation_queue = device.get_device_queue(queue_family_indices.presentation, 0);
         }
 
         Self {

@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 extern crate ash;
 use ash::extensions::{
     ext::DebugUtils,
-    khr::{Surface, Win32Surface},
+    khr::{Surface, Win32Surface, Swapchain},
 };
 
 pub fn get_required_extensions() -> Vec<*const c_char> {
@@ -11,5 +11,11 @@ pub fn get_required_extensions() -> Vec<*const c_char> {
         Surface::name().as_ptr(),
         Win32Surface::name().as_ptr(),
         DebugUtils::name().as_ptr(),
+    ]
+}
+
+pub fn get_required_device_extensions() -> Vec<*const c_char> {
+    vec![
+        Swapchain::name().as_ptr()
     ]
 }
