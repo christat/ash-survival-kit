@@ -1,6 +1,5 @@
 use std::os::raw::c_char;
 
-extern crate ash;
 use ash::extensions::{
     ext::DebugUtils,
     khr::{Surface, Win32Surface, Swapchain},

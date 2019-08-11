@@ -1,11 +1,10 @@
-extern crate ash;
 use ash::{
     version::InstanceV1_0,
     vk, Instance,
     extensions::khr::Surface
 };
 
-use super::device_utils;
+use crate::setup::devices::utils;
 
 pub fn select_physical_device(instance: &Instance, surface: &Surface, surface_khr: vk::SurfaceKHR) -> vk::PhysicalDevice {
     let physical_devices = unsafe {
@@ -21,7 +20,7 @@ pub fn select_physical_device(instance: &Instance, surface: &Surface, surface_kh
     let suitable_devices = physical_devices
         .into_iter()
         .filter_map(|device| {
-            if device_utils::is_physical_device_suitable(instance, device, surface, surface_khr) {
+            if utils::is_physical_device_suitable(instance, device, surface, surface_khr) {
                 Some(device)
             } else {
                 None

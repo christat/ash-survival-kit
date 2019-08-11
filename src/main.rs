@@ -19,13 +19,16 @@ use winit::{
 };
 
 mod setup;
-use setup::devices::{physical_devices, logical_devices};
 pub mod utils;
+use crate::setup::swapchain::SwapchainData;
 
 #[cfg(debug_assertions)]
 pub const ENABLE_VALIDATION_LAYERS: bool = true;
 #[cfg(not(debug_assertions))]
 pub const ENABLE_VALIDATION_LAYERS: bool = false;
+
+pub const WINDOW_WIDTH: usize = 800;
+pub const WINDOW_HEIGHT: usize = 600;
 
 struct HelloTriangleApplication {
     entry: Entry,
@@ -34,24 +37,23 @@ struct HelloTriangleApplication {
     debug_utils: Option<DebugUtils>,
     debug_utils_messenger_ext: Option<vk::DebugUtilsMessengerEXT>,
     surface: Surface,
-    surface_khr: vk::SurfaceKHR
+    surface_khr: vk::SurfaceKHR,
+    swapchain_data: SwapchainData
 }
 
 impl HelloTriangleApplication {
     pub fn new(window: &Window, enable_validation_layers: bool) -> Self {
         let (entry, instance) = setup::init_vulkan(enable_validation_layers);
-        let (debug_utils, debug_utils_messenger_ext) = match setup::init_debug_messenger(&entry, &instance, enable_validation_layers) {
-            Some((debug_utils, debug_utils_messenger_ext)) => (Some(debug_utils), Some(debug_utils_messenger_ext)),
-            None => (None, None)
-        };
+        let (debug_utils, debug_utils_messenger_ext) = setup::init_debug_messenger(&entry, &instance, enable_validation_layers);
         let surface = Surface::new(&entry, &instance);
         let surface_khr = setup::init_surface_khr(&entry, &instance, window);
-        let physical_device = physical_devices::select_physical_device(&instance, &surface, surface_khr);
-        let (device, queue_family_indices) = logical_devices::create_logical_device(&instance, physical_device, &surface, surface_khr, enable_validation_layers);
+        let physical_device = setup::devices::physical::select_physical_device(&instance, &surface, surface_khr);
+        let (device, queue_family_indices) = setup::devices::logical::create_logical_device(&instance, physical_device, &surface, surface_khr, enable_validation_layers);
+        let swapchain_data = setup::swapchain::init(&instance, physical_device, &device, &surface, surface_khr);
 
         unsafe {
             let _graphics_queue = device.get_device_queue(queue_family_indices.graphics, 0);
-            let _presentation_queue = device.get_device_queue(queue_family_indices.presentation, 0);
+            let _presentation_queue = device.get_device_queue(queue_family_indices.present, 0);
         }
 
         Self {
@@ -61,7 +63,8 @@ impl HelloTriangleApplication {
             debug_utils_messenger_ext,
             device,
             surface,
-            surface_khr
+            surface_khr,
+            swapchain_data
         }
     }
 
@@ -91,6 +94,7 @@ impl Drop for HelloTriangleApplication {
         }
 
         unsafe {
+            self.swapchain_data.swapchain.destroy_swapchain(self.swapchain_data.swapchain_khr, None);
             self.surface.destroy_surface(self.surface_khr, None);
             self.instance.destroy_instance(None);
         };

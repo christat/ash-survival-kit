@@ -4,7 +4,6 @@ use std::{
     os::raw::{c_char, c_void},
 };
 
-extern crate ash;
 use ash::{
     version::EntryV1_0,
     vk, Entry, Instance,

@@ -1,4 +1,4 @@
-pub mod logical_devices;
-pub mod physical_devices;
-mod device_utils;
+pub mod logical;
+pub mod physical;
+pub mod utils;
 
