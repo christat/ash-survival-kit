@@ -38,7 +38,7 @@ struct HelloTriangleApplication {
     debug_utils_messenger_ext: Option<vk::DebugUtilsMessengerEXT>,
     surface: Surface,
     surface_khr: vk::SurfaceKHR,
-    swapchain_data: SwapchainData
+    swapchain_data: SwapchainData,
 }
 
 impl HelloTriangleApplication {
@@ -64,7 +64,7 @@ impl HelloTriangleApplication {
             device,
             surface,
             surface_khr,
-            swapchain_data
+            swapchain_data,
         }
     }
 
@@ -94,6 +94,7 @@ impl Drop for HelloTriangleApplication {
         }
 
         unsafe {
+            self.swapchain_data.swapchain_image_views.iter().for_each(|image_view| self.device.destroy_image_view(*image_view, None));
             self.swapchain_data.swapchain.destroy_swapchain(self.swapchain_data.swapchain_khr, None);
             self.surface.destroy_surface(self.surface_khr, None);
             self.instance.destroy_instance(None);

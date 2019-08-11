@@ -3,6 +3,7 @@ use ash::{
     Device,
     vk,
     extensions::khr::{Surface, Swapchain},
+    version::DeviceV1_0,
 };
 
 pub mod utils;
@@ -12,6 +13,7 @@ pub struct SwapchainData {
     pub swapchain: Swapchain,
     pub swapchain_khr: vk::SwapchainKHR,
     pub swapchain_images: Vec<vk::Image>,
+    pub swapchain_image_views: Vec<vk::ImageView>,
     pub image_format: vk::Format,
     pub image_extent: vk::Extent2D,
 }
@@ -61,12 +63,39 @@ pub fn init(instance: &Instance, physical_device: vk::PhysicalDevice, device: &D
     let swapchain = Swapchain::new(instance, device);
     let swapchain_khr = unsafe { swapchain.create_swapchain(&swapchain_create_info, None).expect("Failed to create swapchain!") };
     let swapchain_images = unsafe { swapchain.get_swapchain_images(swapchain_khr).expect("Failed to get swapchain images!") };
+    let swapchain_image_views = create_image_views(device, &swapchain_images, image_format);
 
     SwapchainData {
         swapchain,
         swapchain_khr,
         swapchain_images,
+        swapchain_image_views,
         image_format,
         image_extent
     }
+}
+
+fn create_image_views(device: &Device, swapchain_images: &[vk::Image], format: vk::Format) -> Vec<vk::ImageView> {
+    let subresource_range = vk::ImageSubresourceRange::builder()
+        .aspect_mask(vk::ImageAspectFlags::COLOR)
+        .base_mip_level(0)
+        .level_count(1)
+        .base_array_layer(0)
+        .layer_count(1)
+        .build();
+
+    let image_views = swapchain_images.iter().fold(vec![], |mut acc, image| {
+        let image_view_create_info = vk::ImageViewCreateInfo::builder()
+            .image(*image)
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .format(format)
+            .components(vk::ComponentMapping::default())
+            .subresource_range(subresource_range)
+            .build();
+
+        let image_view = unsafe { device.create_image_view(&image_view_create_info, None).expect("Failed to create image views!") };
+        acc.push(image_view);
+        acc
+    });
+    image_views
 }
