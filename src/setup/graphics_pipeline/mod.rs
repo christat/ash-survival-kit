@@ -1,21 +1,23 @@
 use std::{
     ffi::CString,
-    path::Path,
+    path::Path
 };
 
 use ash::{
     Device,
-    vk
+    vk,
+    version::DeviceV1_0
 };
-use ash::version::DeviceV1_0;
 
+use crate::setup::swapchain::SwapchainData;
 mod utils;
 
 pub struct Pipeline {
+    pub pipeline_layout: vk::PipelineLayout,
     pub shader_modules: Vec<vk::ShaderModule>
 }
 
-pub fn create(device: &Device) -> Pipeline {
+pub fn create(device: &Device, swapchain_data: &SwapchainData) -> Pipeline {
     let vert_shader_raw = utils::read_shader(Path::new("src/shaders/vert.spv"));
     let frag_shader_raw = utils::read_shader(Path::new("src/shaders/frag.spv"));
 
@@ -39,7 +41,79 @@ pub fn create(device: &Device) -> Pipeline {
 
     let _shader_stages = vec![vert_shader_stage_info, frag_shader_stage_info];
 
+    let _pipeline_vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder().build();
+
+    let _pipeline_input_assembly_state_create_info = vk::PipelineInputAssemblyStateCreateInfo::builder()
+        .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+        .primitive_restart_enable(false)
+        .build();
+
+    let viewports = [vk::Viewport::builder()
+        .x(0.0)
+        .y(0.0)
+        .width(swapchain_data.image_extent.width as f32)
+        .height(swapchain_data.image_extent.height as f32)
+        .min_depth(0.0)
+        .max_depth(1.0)
+        .build()];
+
+    let scissors = [vk::Rect2D::builder()
+        .offset(vk::Offset2D::builder().x(0).y(0).build())
+        .extent(swapchain_data.image_extent)
+        .build()];
+
+    let _viewport_state = vk::PipelineViewportStateCreateInfo::builder()
+        .viewport_count(1)
+        .viewports(&viewports)
+        .scissor_count(1)
+        .scissors(&scissors)
+        .build();
+
+    let _rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
+        .depth_clamp_enable(false)
+        .rasterizer_discard_enable(false)
+        .polygon_mode(vk::PolygonMode::FILL)
+        .line_width(1.0)
+        .cull_mode(vk::CullModeFlags::BACK)
+        .front_face(vk::FrontFace::CLOCKWISE)
+        .depth_bias_enable(false)
+        .depth_bias_constant_factor(0.0)
+        .depth_bias_clamp(0.0)
+        .depth_bias_slope_factor(0.0)
+        .build();
+
+    let _multisampling = vk::PipelineMultisampleStateCreateInfo::builder()
+        .sample_shading_enable(false)
+        .rasterization_samples(vk::SampleCountFlags::TYPE_1)
+        .min_sample_shading(1.0)
+        .alpha_to_coverage_enable(false)
+        .alpha_to_one_enable(false)
+        .build();
+
+    let color_blend_attachments = [vk::PipelineColorBlendAttachmentState::builder()
+        .color_write_mask(vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B | vk::ColorComponentFlags::A)
+        .blend_enable(true)
+        .src_color_blend_factor(vk::BlendFactor::SRC_ALPHA)
+        .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+        .color_blend_op(vk::BlendOp::ADD)
+        .src_alpha_blend_factor(vk::BlendFactor::ONE)
+        .dst_alpha_blend_factor(vk::BlendFactor::ZERO)
+        .alpha_blend_op(vk::BlendOp::ADD)
+        .build()];
+
+    let _color_blending = vk::PipelineColorBlendStateCreateInfo::builder()
+        .logic_op_enable(false)
+        .logic_op(vk::LogicOp::COPY)
+        .attachments(&color_blend_attachments)
+        .blend_constants([0.0, 0.0, 0.0, 0.0])
+        .build();
+
+    let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder().build();
+
+    let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_create_info, None).expect("Failed to create pipeline layout!") };
+
     Pipeline {
+        pipeline_layout,
         shader_modules: vec![
             vert_shader_module,
             frag_shader_module
