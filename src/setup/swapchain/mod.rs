@@ -1,9 +1,7 @@
 use ash::{
-    Instance,
-    Device,
-    vk,
     extensions::khr::{Surface, Swapchain},
     version::DeviceV1_0,
+    vk, Device, Instance,
 };
 
 pub mod utils;
@@ -18,10 +16,23 @@ pub struct SwapchainData {
     pub image_extent: vk::Extent2D,
 }
 
-pub fn init(instance: &Instance, physical_device: vk::PhysicalDevice, device: &Device, surface: &Surface, surface_khr: vk::SurfaceKHR) -> SwapchainData {
-    let utils::SwapchainDetails { capabilities, formats, present_modes } = utils::query_swapchain_support(physical_device, surface, surface_khr);
+pub fn create(
+    instance: &Instance,
+    physical_device: vk::PhysicalDevice,
+    device: &Device,
+    surface: &Surface,
+    surface_khr: vk::SurfaceKHR,
+) -> SwapchainData {
+    let utils::SwapchainDetails {
+        capabilities,
+        formats,
+        present_modes,
+    } = utils::query_swapchain_support(physical_device, surface, surface_khr);
 
-    let vk::SurfaceFormatKHR { format: image_format, color_space } = utils::select_swapchain_surface_format(formats);
+    let vk::SurfaceFormatKHR {
+        format: image_format,
+        color_space,
+    } = utils::select_swapchain_surface_format(formats);
     let present_mode = utils::select_swapchain_present_mode(present_modes);
     let image_extent = utils::select_swapchain_extent(capabilities);
 
@@ -29,10 +40,20 @@ pub fn init(instance: &Instance, physical_device: vk::PhysicalDevice, device: &D
     let image_count = if capabilities.max_image_count == 0 {
         capabilities.min_image_count + 1
     } else {
-        u32::min(capabilities.min_image_count + 1, capabilities.max_image_count)
+        u32::min(
+            capabilities.min_image_count + 1,
+            capabilities.max_image_count,
+        )
     };
 
-    let device_utils::QueueFamilyIndices { graphics, present } = device_utils::get_physical_device_queue_family_indices(instance, physical_device, surface, surface_khr).expect("No queue families contain required flags!");;
+    let device_utils::QueueFamilyIndices { graphics, present } =
+        device_utils::get_physical_device_queue_family_indices(
+            instance,
+            physical_device,
+            surface,
+            surface_khr,
+        )
+        .expect("No queue families contain required flags!");;
     // enable swapchaing sharing and pass relevant indices to struct iff both queue indices are the different.
     let (image_sharing_mode, queue_family_indices) = match graphics == present {
         true => (vk::SharingMode::EXCLUSIVE, vec![]),
@@ -55,14 +76,23 @@ pub fn init(instance: &Instance, physical_device: vk::PhysicalDevice, device: &D
         .old_swapchain(vk::SwapchainKHR::null());
 
     if !queue_family_indices.is_empty() {
-        swapchain_create_info_builder = swapchain_create_info_builder.queue_family_indices(&queue_family_indices);
+        swapchain_create_info_builder =
+            swapchain_create_info_builder.queue_family_indices(&queue_family_indices);
     }
 
     let swapchain_create_info = swapchain_create_info_builder.build();
 
     let swapchain = Swapchain::new(instance, device);
-    let swapchain_khr = unsafe { swapchain.create_swapchain(&swapchain_create_info, None).expect("Failed to create swapchain!") };
-    let swapchain_images = unsafe { swapchain.get_swapchain_images(swapchain_khr).expect("Failed to get swapchain images!") };
+    let swapchain_khr = unsafe {
+        swapchain
+            .create_swapchain(&swapchain_create_info, None)
+            .expect("Failed to create swapchain!")
+    };
+    let swapchain_images = unsafe {
+        swapchain
+            .get_swapchain_images(swapchain_khr)
+            .expect("Failed to get swapchain images!")
+    };
     let swapchain_image_views = create_image_views(device, &swapchain_images, image_format);
 
     SwapchainData {
@@ -71,11 +101,15 @@ pub fn init(instance: &Instance, physical_device: vk::PhysicalDevice, device: &D
         swapchain_images,
         swapchain_image_views,
         image_format,
-        image_extent
+        image_extent,
     }
 }
 
-fn create_image_views(device: &Device, swapchain_images: &[vk::Image], format: vk::Format) -> Vec<vk::ImageView> {
+fn create_image_views(
+    device: &Device,
+    swapchain_images: &[vk::Image],
+    format: vk::Format,
+) -> Vec<vk::ImageView> {
     let subresource_range = vk::ImageSubresourceRange::builder()
         .aspect_mask(vk::ImageAspectFlags::COLOR)
         .base_mip_level(0)
@@ -93,7 +127,11 @@ fn create_image_views(device: &Device, swapchain_images: &[vk::Image], format: v
             .subresource_range(subresource_range)
             .build();
 
-        let image_view = unsafe { device.create_image_view(&image_view_create_info, None).expect("Failed to create image views!") };
+        let image_view = unsafe {
+            device
+                .create_image_view(&image_view_create_info, None)
+                .expect("Failed to create image views!")
+        };
         acc.push(image_view);
         acc
     });

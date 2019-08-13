@@ -1,12 +1,12 @@
-use ash::{
-    version::InstanceV1_0,
-    vk, Instance,
-    extensions::khr::Surface
-};
+use ash::{extensions::khr::Surface, version::InstanceV1_0, vk, Instance};
 
 use crate::setup::devices::utils;
 
-pub fn select_physical_device(instance: &Instance, surface: &Surface, surface_khr: vk::SurfaceKHR) -> vk::PhysicalDevice {
+pub fn select_physical_device(
+    instance: &Instance,
+    surface: &Surface,
+    surface_khr: vk::SurfaceKHR,
+) -> vk::PhysicalDevice {
     let physical_devices = unsafe {
         instance
             .enumerate_physical_devices()
@@ -25,7 +25,8 @@ pub fn select_physical_device(instance: &Instance, surface: &Surface, surface_kh
             } else {
                 None
             }
-        }).collect::<Vec<vk::PhysicalDevice>>();
+        })
+        .collect::<Vec<vk::PhysicalDevice>>();
 
     if suitable_devices.len() == 0 {
         panic!("No suitable devices found!")

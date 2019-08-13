@@ -1,23 +1,15 @@
-use std::{
-    os::raw::c_void,
-    ptr
-};
+use std::{os::raw::c_void, ptr};
 
 use ash::{
-    vk,
-    Entry,
-    Instance,
-    extensions::{
-        ext::DebugUtils,
-        khr::Win32Surface
-    }
+    extensions::{ext::DebugUtils, khr::Win32Surface},
+    vk, Entry, Instance,
 };
 
 use winit::{
     dpi::LogicalSize,
     event_loop::EventLoop,
+    platform::windows::WindowExtWindows,
     window::{Window, WindowBuilder},
-    platform::windows::WindowExtWindows
 };
 
 extern crate winapi;
@@ -25,6 +17,7 @@ use winapi::um::libloaderapi::GetModuleHandleW;
 
 pub mod devices;
 pub mod extensions;
+pub mod graphics_pipeline;
 pub mod instance;
 pub mod swapchain;
 
@@ -41,9 +34,11 @@ pub fn init_vulkan(enable_validation_layers: bool) -> (Entry, Instance) {
 pub fn init_debug_messenger(
     entry: &Entry,
     instance: &Instance,
-    enable_validation_layers: bool
+    enable_validation_layers: bool,
 ) -> (Option<DebugUtils>, Option<vk::DebugUtilsMessengerEXT>) {
-    if !enable_validation_layers { return (None, None) }
+    if !enable_validation_layers {
+        return (None, None);
+    }
 
     let debug_utils = DebugUtils::new(entry, instance);
     let create_info = debugging::populate_debug_messenger_create_info();
@@ -59,7 +54,10 @@ pub fn init_debug_messenger(
 pub fn init_window() -> (EventLoop<()>, Window) {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_inner_size(LogicalSize::new(crate::WINDOW_WIDTH as f64, crate::WINDOW_HEIGHT as f64))
+        .with_inner_size(LogicalSize::new(
+            crate::WINDOW_WIDTH as f64,
+            crate::WINDOW_HEIGHT as f64,
+        ))
         .with_title("Vulkan tutorial")
         .build(&event_loop)
         .expect("Failed to create window!");
@@ -74,7 +72,10 @@ pub fn init_surface_khr(entry: &Entry, instance: &Instance, window: &Window) -> 
         .hinstance(unsafe { GetModuleHandleW(ptr::null()) as *const c_void })
         .build();
 
-    let surface = unsafe { win_32_surface.create_win32_surface(&win_32_surface_create_info, None).expect("Failed to create window surface!") };
+    let surface = unsafe {
+        win_32_surface
+            .create_win32_surface(&win_32_surface_create_info, None)
+            .expect("Failed to create window surface!")
+    };
     surface
 }
-

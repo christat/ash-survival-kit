@@ -4,15 +4,14 @@ use std::{
     os::raw::{c_char, c_void},
 };
 
-use ash::{
-    version::EntryV1_0,
-    vk, Entry, Instance,
-};
+use ash::{version::EntryV1_0, vk, Entry, Instance};
 
 use super::debugging;
 use super::extensions;
 
-pub fn create_vk_instance(enable_validation_layers: bool) -> Result<(Entry, Instance), Box<dyn Error>> {
+pub fn create_vk_instance(
+    enable_validation_layers: bool,
+) -> Result<(Entry, Instance), Box<dyn Error>> {
     let entry = Entry::new()?;
     if enable_validation_layers && !debugging::check_validation_layer_support(&entry) {
         panic!("Validation layers requested but not available!")
@@ -56,4 +55,3 @@ pub fn create_vk_instance(enable_validation_layers: bool) -> Result<(Entry, Inst
     let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
     Ok((entry, instance))
 }
-

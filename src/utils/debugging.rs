@@ -1,9 +1,9 @@
 use std::{
     ffi::{CStr, CString},
-    os::raw::c_void
+    os::raw::c_void,
 };
 
-use ash::{version::EntryV1_0, Entry, vk};
+use ash::{version::EntryV1_0, vk, Entry};
 
 const VALIDATION_LAYERS: [&str; 1] = ["VK_LAYER_KHRONOS_validation"];
 
@@ -33,13 +33,15 @@ pub fn get_enabled_layer_names() -> Vec<CString> {
 
 pub fn populate_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
     vk::DebugUtilsMessengerCreateInfoEXT::builder()
-        .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-            | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-            | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR)
+        .message_severity(
+            vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+                | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+        )
         .message_type(
             vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
                 | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
-                | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
         )
         .pfn_user_callback(Some(pfn_user_callback))
         .build()
