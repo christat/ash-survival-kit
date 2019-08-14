@@ -38,6 +38,7 @@ struct HelloTriangleApplication {
     surface: Surface,
     surface_khr: vk::SurfaceKHR,
     swapchain_data: SwapchainData,
+    render_pass: vk::RenderPass,
     pipeline: Pipeline
 }
 
@@ -59,6 +60,7 @@ impl HelloTriangleApplication {
         );
         let swapchain_data =
             setup::swapchain::create(&instance, physical_device, &device, &surface, surface_khr);
+        let render_pass = setup::render_pass::create(&device, &swapchain_data);
         let pipeline = setup::graphics_pipeline::create(&device, &swapchain_data);
 
         unsafe {
@@ -75,6 +77,7 @@ impl HelloTriangleApplication {
             surface,
             surface_khr,
             swapchain_data,
+            render_pass,
             pipeline
         }
     }
@@ -108,6 +111,7 @@ impl Drop for HelloTriangleApplication {
 
         unsafe {
             self.device.destroy_pipeline_layout(self.pipeline.pipeline_layout, None);
+            self.device.destroy_render_pass(self.render_pass, None);
             self.pipeline.shader_modules.iter().for_each(|module| self.device.destroy_shader_module(*module, None));
             self.swapchain_data
                 .swapchain_image_views

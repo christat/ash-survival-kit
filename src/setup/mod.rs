@@ -20,15 +20,13 @@ pub mod extensions;
 pub mod graphics_pipeline;
 pub mod instance;
 pub mod swapchain;
+pub mod render_pass;
 
 use super::utils::debugging;
 
 pub fn init_vulkan(enable_validation_layers: bool) -> (Entry, Instance) {
-    let instance_result = instance::create_vk_instance(enable_validation_layers);
-    match instance_result {
-        Ok((entry, instance)) => (entry, instance),
-        Err(e) => panic!("Failed to create Vulkan instance: {}", e),
-    }
+    let (entry, instance) = instance::create_vk_instance(enable_validation_layers).expect("Failed to create Vulkan instance!");
+    (entry, instance)
 }
 
 pub fn init_debug_messenger(
