@@ -61,7 +61,7 @@ impl HelloTriangleApplication {
         let swapchain_data =
             setup::swapchain::create(&instance, physical_device, &device, &surface, surface_khr);
         let render_pass = setup::render_pass::create(&device, &swapchain_data);
-        let pipeline = setup::graphics_pipeline::create(&device, &swapchain_data);
+        let pipeline = setup::graphics_pipeline::create(&device, &swapchain_data, render_pass);
 
         unsafe {
             let _graphics_queue = device.get_device_queue(queue_family_indices.graphics, 0);
@@ -110,6 +110,7 @@ impl Drop for HelloTriangleApplication {
         }
 
         unsafe {
+            self.pipeline.pipelines.iter().for_each(|pipeline| self.device.destroy_pipeline(*pipeline, None));
             self.device.destroy_pipeline_layout(self.pipeline.pipeline_layout, None);
             self.device.destroy_render_pass(self.render_pass, None);
             self.pipeline.shader_modules.iter().for_each(|module| self.device.destroy_shader_module(*module, None));

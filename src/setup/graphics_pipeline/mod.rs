@@ -13,11 +13,12 @@ use crate::setup::swapchain::SwapchainData;
 mod utils;
 
 pub struct Pipeline {
+    pub pipelines: Vec<vk::Pipeline>,
     pub pipeline_layout: vk::PipelineLayout,
     pub shader_modules: Vec<vk::ShaderModule>
 }
 
-pub fn create(device: &Device, swapchain_data: &SwapchainData) -> Pipeline {
+pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::RenderPass) -> Pipeline {
     let vert_shader_raw = utils::read_shader(Path::new("src/shaders/vert.spv"));
     let frag_shader_raw = utils::read_shader(Path::new("src/shaders/frag.spv"));
 
@@ -39,11 +40,11 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData) -> Pipeline {
         .name(entry_point.as_c_str())
         .build();
 
-    let _shader_stages = vec![vert_shader_stage_info, frag_shader_stage_info];
+    let shader_stages = vec![vert_shader_stage_info, frag_shader_stage_info];
 
-    let _pipeline_vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder().build();
+    let pipeline_vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder().build();
 
-    let _pipeline_input_assembly_state_create_info = vk::PipelineInputAssemblyStateCreateInfo::builder()
+    let pipeline_input_assembly_state_create_info = vk::PipelineInputAssemblyStateCreateInfo::builder()
         .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
         .primitive_restart_enable(false)
         .build();
@@ -62,14 +63,14 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData) -> Pipeline {
         .extent(swapchain_data.image_extent)
         .build()];
 
-    let _viewport_state = vk::PipelineViewportStateCreateInfo::builder()
+    let viewport_state = vk::PipelineViewportStateCreateInfo::builder()
         .viewport_count(1)
         .viewports(&viewports)
         .scissor_count(1)
         .scissors(&scissors)
         .build();
 
-    let _rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
+    let rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
         .depth_clamp_enable(false)
         .rasterizer_discard_enable(false)
         .polygon_mode(vk::PolygonMode::FILL)
@@ -82,7 +83,7 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData) -> Pipeline {
         .depth_bias_slope_factor(0.0)
         .build();
 
-    let _multisampling = vk::PipelineMultisampleStateCreateInfo::builder()
+    let multisampling = vk::PipelineMultisampleStateCreateInfo::builder()
         .sample_shading_enable(false)
         .rasterization_samples(vk::SampleCountFlags::TYPE_1)
         .min_sample_shading(1.0)
@@ -101,7 +102,7 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData) -> Pipeline {
         .alpha_blend_op(vk::BlendOp::ADD)
         .build()];
 
-    let _color_blending = vk::PipelineColorBlendStateCreateInfo::builder()
+    let color_blending = vk::PipelineColorBlendStateCreateInfo::builder()
         .logic_op_enable(false)
         .logic_op(vk::LogicOp::COPY)
         .attachments(&color_blend_attachments)
@@ -112,7 +113,25 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData) -> Pipeline {
 
     let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_create_info, None).expect("Failed to create pipeline layout!") };
 
+    let pipeline_create_infos = [vk::GraphicsPipelineCreateInfo::builder()
+        .stages(&shader_stages)
+        .vertex_input_state(&pipeline_vertex_input_state_create_info)
+        .input_assembly_state(&pipeline_input_assembly_state_create_info)
+        .viewport_state(&viewport_state)
+        .rasterization_state(&rasterizer)
+        .multisample_state(&multisampling)
+        .color_blend_state(&color_blending)
+        .layout(pipeline_layout)
+        .render_pass(render_pass)
+        .subpass(0)
+        .base_pipeline_handle(vk::Pipeline::default())
+        .base_pipeline_index(-1)
+        .build()];
+
+    let pipelines = unsafe { device.create_graphics_pipelines(vk::PipelineCache::default(), &pipeline_create_infos, None).expect("Failed to create graphics pipeline!") };
+
     Pipeline {
+        pipelines,
         pipeline_layout,
         shader_modules: vec![
             vert_shader_module,
