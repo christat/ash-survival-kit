@@ -17,10 +17,11 @@ use winapi::um::libloaderapi::GetModuleHandleW;
 
 pub mod devices;
 pub mod extensions;
+pub mod framebuffers;
 pub mod graphics_pipeline;
 pub mod instance;
-pub mod swapchain;
 pub mod render_pass;
+pub mod swapchain;
 
 use super::utils::debugging;
 
