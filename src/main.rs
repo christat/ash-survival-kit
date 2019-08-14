@@ -11,6 +11,7 @@ extern crate winit;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    platform::desktop::EventLoopExtDesktop,
     window::Window,
 };
 
@@ -19,6 +20,7 @@ pub mod utils;
 use crate::setup::{
     swapchain::SwapchainData,
     graphics_pipeline::Pipeline,
+    frame_sync::FrameSyncData
 };
 
 #[cfg(debug_assertions)]
@@ -28,6 +30,8 @@ pub const ENABLE_VALIDATION_LAYERS: bool = false;
 
 pub const WINDOW_WIDTH: usize = 800;
 pub const WINDOW_HEIGHT: usize = 600;
+
+const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
 struct HelloTriangleApplication {
     entry: Entry,
@@ -41,7 +45,11 @@ struct HelloTriangleApplication {
     render_pass: vk::RenderPass,
     pipeline: Pipeline,
     framebuffers: Vec<vk::Framebuffer>,
-    command_pool: vk::CommandPool
+    command_pool: vk::CommandPool,
+    command_buffers: Vec<vk::CommandBuffer>,
+    frame_sync_data: FrameSyncData,
+    graphics_queue: vk::Queue,
+    present_queue: vk::Queue
 }
 
 impl HelloTriangleApplication {
@@ -67,12 +75,11 @@ impl HelloTriangleApplication {
         let framebuffers = setup::framebuffers::create(&device, &swapchain_data, render_pass);
         let command_pool = setup::command_pool::create(&device, &queue_family_indices);
         let graphics_pipeline = pipeline.pipelines.first().expect("Failed to fetch pipeline!");
-        setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline);
+        let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline);
+        let frame_sync_data = setup::frame_sync::create(&device, MAX_FRAMES_IN_FLIGHT);
 
-        unsafe {
-            let _graphics_queue = device.get_device_queue(queue_family_indices.graphics, 0);
-            let _presentation_queue = device.get_device_queue(queue_family_indices.present, 0);
-        }
+        let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
+        let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
 
         Self {
             entry,
@@ -86,23 +93,74 @@ impl HelloTriangleApplication {
             render_pass,
             pipeline,
             framebuffers,
-            command_pool
+            command_pool,
+            command_buffers,
+            frame_sync_data,
+            graphics_queue,
+            present_queue
         }
     }
 
-    pub fn run(&mut self, event_loop: EventLoop<()>, window: Window) -> Result<(), Box<dyn Error>> {
+    pub fn run(&self, event_loop: &mut EventLoop<()>, window: Window) -> Result<(), Box<dyn Error>> {
         self.main_loop(event_loop, window);
         Ok(())
     }
 
-    fn main_loop(&mut self, event_loop: EventLoop<()>, window: Window) {
-        event_loop.run(move |event, _, control_flow| match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                window_id,
-            } if window_id == window.id() => *control_flow = ControlFlow::Exit,
-            _ => *control_flow = ControlFlow::Wait,
+    fn main_loop(&self, event_loop: &mut EventLoop<()>, window: Window) {
+        let mut current_frame: usize = 0;
+        event_loop.run_return(|event, _, control_flow| {
+            match event {
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    window_id,
+                } if window_id == window.id() => *control_flow = ControlFlow::Exit,
+                _ => *control_flow = ControlFlow::Wait,
+            }
+            self.draw_frame(current_frame);
+            current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
         });
+
+        unsafe { self.device.device_wait_idle().expect("Failed to wait for logical device to finish operations!") };
+    }
+
+    fn draw_frame(&self, current_frame: usize) {
+        let timeout = std::u64::MAX;
+        unsafe {
+            let fences = [self.frame_sync_data.in_flight_fences[current_frame]];
+            self.device.wait_for_fences(&fences, true, timeout).expect("Failed to wait for fences!");
+            self.device.reset_fences(&fences).expect("Failed to reset fences!");
+        }
+
+        let (image_index, _is_suboptimal) = unsafe { self.swapchain_data.swapchain.acquire_next_image(self.swapchain_data.swapchain_khr, timeout, self.frame_sync_data.image_available_semaphores[current_frame], vk::Fence::null()).expect("Failed to acquire next image!")  };
+
+        let wait_semaphores = [self.frame_sync_data.image_available_semaphores[current_frame]];
+        let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let command_buffers = [
+            self.command_buffers[image_index as usize]
+        ];
+        let signal_semaphores = [self.frame_sync_data.render_finished_semaphores[current_frame]];
+
+        let submit_infos = [
+            vk::SubmitInfo::builder()
+                .wait_semaphores(&wait_semaphores)
+                .wait_dst_stage_mask(&wait_stages)
+                .command_buffers(&command_buffers)
+                .signal_semaphores(&signal_semaphores)
+                .build()
+        ];
+
+        unsafe { self.device.queue_submit(self.graphics_queue, &submit_infos, self.frame_sync_data.in_flight_fences[current_frame]).expect("Failed to submit draw command buffer!") };
+
+        let swapchains = [self.swapchain_data.swapchain_khr];
+        let image_indices = [image_index];
+
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&signal_semaphores)
+            .swapchains(&swapchains)
+            .image_indices(&image_indices)
+            .build();
+
+        unsafe { self.swapchain_data.swapchain.queue_present(self.present_queue, &present_info).expect("Failed to queue image to presentation!") };
     }
 }
 
@@ -118,6 +176,9 @@ impl Drop for HelloTriangleApplication {
         }
 
         unsafe {
+            self.frame_sync_data.image_available_semaphores.iter().for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
+            self.frame_sync_data.render_finished_semaphores.iter().for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
+            self.frame_sync_data.in_flight_fences.iter().for_each(|fence| self.device.destroy_fence(*fence, None));
             self.device.destroy_command_pool(self.command_pool, None);
             self.framebuffers.iter().for_each(|framebuffer| self.device.destroy_framebuffer(*framebuffer, None));
             self.pipeline.pipelines.iter().for_each(|pipeline| self.device.destroy_pipeline(*pipeline, None));
@@ -131,6 +192,7 @@ impl Drop for HelloTriangleApplication {
             self.swapchain_data
                 .swapchain
                 .destroy_swapchain(self.swapchain_data.swapchain_khr, None);
+            self.device.destroy_device(None);
             self.surface.destroy_surface(self.surface_khr, None);
             self.instance.destroy_instance(None);
         };
@@ -139,7 +201,7 @@ impl Drop for HelloTriangleApplication {
 
 fn main() {
     // TODO not too happy with this "borrow, then transfer" of event_loop/window; Find better way to interact with winit.
-    let (event_loop, window) = setup::init_window();
-    let mut app = HelloTriangleApplication::new(&window, ENABLE_VALIDATION_LAYERS);
-    app.run(event_loop, window).expect("Application crashed!");
+    let (mut event_loop, window) = setup::init_window();
+    let app = HelloTriangleApplication::new(&window, ENABLE_VALIDATION_LAYERS);
+    app.run(&mut event_loop, window).expect("Application crashed!");
 }

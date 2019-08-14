@@ -1,10 +1,10 @@
 use ash::{
     Device,
-    vk
+    vk,
+    version::DeviceV1_0
 };
 
 use crate::setup::devices::utils::QueueFamilyIndices;
-use ash::version::DeviceV1_0;
 
 pub fn create(device: &Device, queue_family_indices: &QueueFamilyIndices) -> vk::CommandPool {
     let command_pool_create_info = vk::CommandPoolCreateInfo::builder()

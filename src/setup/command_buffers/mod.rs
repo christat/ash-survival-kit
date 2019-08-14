@@ -1,10 +1,10 @@
 use ash::{
     Device,
     vk,
+    version::DeviceV1_0
 };
-use ash::version::DeviceV1_0;
 
-pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk::Framebuffer], render_pass: vk::RenderPass, swapchain_extent: vk::Extent2D, pipeline: &vk::Pipeline) {
+pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk::Framebuffer], render_pass: vk::RenderPass, swapchain_extent: vk::Extent2D, pipeline: &vk::Pipeline) -> Vec<vk::CommandBuffer> {
     let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(command_pool)
         .level(vk::CommandBufferLevel::PRIMARY)
@@ -12,8 +12,7 @@ pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk
         .build();
 
     let command_buffers = unsafe { device.allocate_command_buffers(&command_buffer_allocate_info).expect("Failed to allocate command buffers!") };
-
-    command_buffers.into_iter().zip(framebuffers).for_each(|(command_buffer, framebuffer)| {
+    let command_buffers = command_buffers.into_iter().zip(framebuffers).map(|(command_buffer, framebuffer)| {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().build();
 
         unsafe { device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Failed to begin recording command buffer!") };
@@ -50,5 +49,8 @@ pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk
             device.cmd_end_render_pass(command_buffer);
             device.end_command_buffer(command_buffer).expect("Failed to record command buffer!");
         };
-    })
+        command_buffer
+    }).collect::<Vec<vk::CommandBuffer>>();
+
+    command_buffers
 }

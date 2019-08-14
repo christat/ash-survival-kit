@@ -20,6 +20,7 @@ pub mod command_pool;
 pub mod devices;
 pub mod extensions;
 pub mod framebuffers;
+pub mod frame_sync;
 pub mod graphics_pipeline;
 pub mod instance;
 pub mod render_pass;
