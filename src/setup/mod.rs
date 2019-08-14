@@ -15,6 +15,8 @@ use winit::{
 extern crate winapi;
 use winapi::um::libloaderapi::GetModuleHandleW;
 
+pub mod command_buffers;
+pub mod command_pool;
 pub mod devices;
 pub mod extensions;
 pub mod framebuffers;

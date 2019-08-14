@@ -40,7 +40,8 @@ struct HelloTriangleApplication {
     swapchain_data: SwapchainData,
     render_pass: vk::RenderPass,
     pipeline: Pipeline,
-    framebuffers: Vec<vk::Framebuffer>
+    framebuffers: Vec<vk::Framebuffer>,
+    command_pool: vk::CommandPool
 }
 
 impl HelloTriangleApplication {
@@ -64,6 +65,9 @@ impl HelloTriangleApplication {
         let render_pass = setup::render_pass::create(&device, &swapchain_data);
         let pipeline = setup::graphics_pipeline::create(&device, &swapchain_data, render_pass);
         let framebuffers = setup::framebuffers::create(&device, &swapchain_data, render_pass);
+        let command_pool = setup::command_pool::create(&device, &queue_family_indices);
+        let graphics_pipeline = pipeline.pipelines.first().expect("Failed to fetch pipeline!");
+        setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline);
 
         unsafe {
             let _graphics_queue = device.get_device_queue(queue_family_indices.graphics, 0);
@@ -81,7 +85,8 @@ impl HelloTriangleApplication {
             swapchain_data,
             render_pass,
             pipeline,
-            framebuffers
+            framebuffers,
+            command_pool
         }
     }
 
@@ -113,6 +118,7 @@ impl Drop for HelloTriangleApplication {
         }
 
         unsafe {
+            self.device.destroy_command_pool(self.command_pool, None);
             self.framebuffers.iter().for_each(|framebuffer| self.device.destroy_framebuffer(*framebuffer, None));
             self.pipeline.pipelines.iter().for_each(|pipeline| self.device.destroy_pipeline(*pipeline, None));
             self.device.destroy_pipeline_layout(self.pipeline.pipeline_layout, None);
