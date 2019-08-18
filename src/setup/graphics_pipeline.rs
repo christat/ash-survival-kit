@@ -1,7 +1,12 @@
 use std::{
     ffi::CString,
-    path::Path
+    path::Path,
+    fs::File,
+    io::Read,
 };
+
+extern crate byteorder;
+use byteorder::{ByteOrder, LittleEndian};
 
 use ash::{
     Device,
@@ -10,17 +15,15 @@ use ash::{
 };
 
 use crate::setup::swapchain::SwapchainData;
-mod utils;
 
 pub struct Pipeline {
     pub pipelines: Vec<vk::Pipeline>,
-    pub pipeline_layout: vk::PipelineLayout,
-    pub shader_modules: Vec<vk::ShaderModule>
+    pub pipeline_layout: vk::PipelineLayout
 }
 
 pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::RenderPass) -> Pipeline {
-    let vert_shader_raw = utils::read_shader(Path::new("src/shaders/vert.spv"));
-    let frag_shader_raw = utils::read_shader(Path::new("src/shaders/frag.spv"));
+    let vert_shader_raw = read_shader(Path::new("src/shaders/vert.spv"));
+    let frag_shader_raw = read_shader(Path::new("src/shaders/frag.spv"));
 
     let vert_shader_module = create_shader_module(device, vert_shader_raw);
     let frag_shader_module = create_shader_module(device, frag_shader_raw);
@@ -109,6 +112,17 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .blend_constants([0.0, 0.0, 0.0, 0.0])
         .build();
 
+    /*
+    let dynamic_states = [
+        vk::DynamicState::VIEWPORT,
+        vk::DynamicState::LINE_WIDTH
+    ];
+
+    let pipeline_dynamic_state_create_info = vk::PipelineDynamicStateCreateInfo::builder()
+        .dynamic_states(&dynamic_states)
+        .build();
+    */
+
     let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder().build();
 
     let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_create_info, None).expect("Failed to create pipeline layout!") };
@@ -126,18 +140,31 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .subpass(0)
         .base_pipeline_handle(vk::Pipeline::default())
         .base_pipeline_index(-1)
+        //.dynamic_state(&pipeline_dynamic_state_create_info)
         .build()];
 
     let pipelines = unsafe { device.create_graphics_pipelines(vk::PipelineCache::default(), &pipeline_create_infos, None).expect("Failed to create graphics pipeline!") };
 
+    // modules are safe to destroy right after creating pipelines
+    unsafe {
+        device.destroy_shader_module(vert_shader_module, None);
+        device.destroy_shader_module(frag_shader_module, None);
+    }
+
     Pipeline {
         pipelines,
-        pipeline_layout,
-        shader_modules: vec![
-            vert_shader_module,
-            frag_shader_module
-        ]
+        pipeline_layout
     }
+}
+
+fn read_shader(file_path: &Path) -> Vec<u32> {
+    let shader_file = File::open(file_path).expect(&format!("Failed to read shader: {}", file_path.display()));
+    let shader_bytes = shader_file.bytes().filter_map(|byte| byte.ok()).collect::<Vec<u8>>();
+    let shader_raw: Vec<u32> = (0..shader_bytes.len()).step_by(4).fold(vec![], |mut acc, i| {
+        acc.push(LittleEndian::read_u32(&shader_bytes[i..]));
+        acc
+    });
+    shader_raw
 }
 
 fn create_shader_module(device: &Device, shader_raw: Vec<u32>) -> vk::ShaderModule {

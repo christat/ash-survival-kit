@@ -2,7 +2,7 @@ use ash::{extensions::khr::Surface, version::InstanceV1_0, vk, Instance};
 
 use crate::setup::devices::utils;
 
-pub fn select_physical_device(
+pub fn select(
     instance: &Instance,
     surface: &Surface,
     surface_khr: vk::SurfaceKHR,

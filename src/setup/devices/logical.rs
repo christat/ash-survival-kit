@@ -3,11 +3,10 @@ use std::{collections::HashSet, os::raw::c_char};
 use ash::{extensions::khr::Surface, version::InstanceV1_0, vk, Instance};
 
 use crate::{
-    setup::{devices::utils, extensions},
-    utils::debugging,
+    setup::{devices::utils, extensions, validation_layers::utils as debug_utils},
 };
 
-pub fn create_logical_device(
+pub fn create(
     instance: &Instance,
     physical_device: vk::PhysicalDevice,
     surface: &Surface,
@@ -41,12 +40,12 @@ pub fn create_logical_device(
     let device_features = vk::PhysicalDeviceFeatures::builder().build();
 
     // variables below in main function body to prevent getting destroyed before entry.create_instance()
-    let enabled_layer_names = debugging::get_enabled_layer_names();
+    let enabled_layer_names = debug_utils::get_enabled_layer_names();
     let enabled_layer_names: Vec<*const c_char> = enabled_layer_names
         .iter()
         .map(|layer_name| layer_name.as_ptr())
         .collect();
-    let enabled_extension_names = extensions::get_required_device_extensions();
+    let enabled_extension_names = extensions::get_device_extensions();
 
     let mut create_info_builder = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_create_infos)

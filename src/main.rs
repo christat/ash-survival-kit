@@ -9,14 +9,14 @@ use ash::{
 
 extern crate winit;
 use winit::{
+    dpi::LogicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::desktop::EventLoopExtDesktop,
-    window::Window,
+    window::{Window, WindowBuilder},
 };
 
 mod setup;
-pub mod utils;
 use crate::setup::{
     swapchain::SwapchainData,
     graphics_pipeline::Pipeline,
@@ -33,8 +33,8 @@ pub const WINDOW_HEIGHT: usize = 600;
 
 const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
-struct HelloTriangleApplication {
-    entry: Entry,
+struct VulkanApp {
+    _entry: Entry,
     instance: Instance,
     device: Device,
     debug_utils: Option<DebugUtils>,
@@ -52,22 +52,23 @@ struct HelloTriangleApplication {
     present_queue: vk::Queue
 }
 
-impl HelloTriangleApplication {
+impl VulkanApp {
     pub fn new(window: &Window, enable_validation_layers: bool) -> Self {
-        let (entry, instance) = setup::init_vulkan(enable_validation_layers);
+        let (entry, instance) = setup::instance::create(enable_validation_layers);
         let (debug_utils, debug_utils_messenger_ext) =
-            setup::init_debug_messenger(&entry, &instance, enable_validation_layers);
+            setup::validation_layers::initialize(&entry, &instance, enable_validation_layers);
         let surface = Surface::new(&entry, &instance);
-        let surface_khr = setup::init_surface_khr(&entry, &instance, window);
+        let surface_khr = setup::platform::surface_khr::create(&entry, &instance, window);
         let physical_device =
-            setup::devices::physical::select_physical_device(&instance, &surface, surface_khr);
-        let (device, queue_family_indices) = setup::devices::logical::create_logical_device(
+            setup::devices::physical::select(&instance, &surface, surface_khr);
+        let (device, queue_family_indices) = setup::devices::logical::create(
             &instance,
             physical_device,
             &surface,
             surface_khr,
             enable_validation_layers,
         );
+
         let swapchain_data =
             setup::swapchain::create(&instance, physical_device, &device, &surface, surface_khr);
         let render_pass = setup::render_pass::create(&device, &swapchain_data);
@@ -82,7 +83,7 @@ impl HelloTriangleApplication {
         let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
 
         Self {
-            entry,
+            _entry: entry,
             instance,
             debug_utils,
             debug_utils_messenger_ext,
@@ -102,11 +103,6 @@ impl HelloTriangleApplication {
     }
 
     pub fn run(&self, event_loop: &mut EventLoop<()>, window: Window) -> Result<(), Box<dyn Error>> {
-        self.main_loop(event_loop, window);
-        Ok(())
-    }
-
-    fn main_loop(&self, event_loop: &mut EventLoop<()>, window: Window) {
         let mut current_frame: usize = 0;
         event_loop.run_return(|event, _, control_flow| {
             match event {
@@ -121,6 +117,7 @@ impl HelloTriangleApplication {
         });
 
         unsafe { self.device.device_wait_idle().expect("Failed to wait for logical device to finish operations!") };
+        Ok(())
     }
 
     fn draw_frame(&self, current_frame: usize) {
@@ -164,7 +161,7 @@ impl HelloTriangleApplication {
     }
 }
 
-impl Drop for HelloTriangleApplication {
+impl Drop for VulkanApp {
     fn drop(&mut self) {
         if self.debug_utils.is_some() && self.debug_utils_messenger_ext.is_some() {
             unsafe {
@@ -184,7 +181,6 @@ impl Drop for HelloTriangleApplication {
             self.pipeline.pipelines.iter().for_each(|pipeline| self.device.destroy_pipeline(*pipeline, None));
             self.device.destroy_pipeline_layout(self.pipeline.pipeline_layout, None);
             self.device.destroy_render_pass(self.render_pass, None);
-            self.pipeline.shader_modules.iter().for_each(|module| self.device.destroy_shader_module(*module, None));
             self.swapchain_data
                 .swapchain_image_views
                 .iter()
@@ -201,7 +197,16 @@ impl Drop for HelloTriangleApplication {
 
 fn main() {
     // TODO not too happy with this "borrow, then transfer" of event_loop/window; Find better way to interact with winit.
-    let (mut event_loop, window) = setup::init_window();
-    let app = HelloTriangleApplication::new(&window, ENABLE_VALIDATION_LAYERS);
+    let mut event_loop = EventLoop::new();
+    let window = WindowBuilder::new()
+        .with_inner_size(LogicalSize::new(
+            WINDOW_WIDTH as f64,
+            WINDOW_HEIGHT as f64,
+        ))
+        .with_title("Vulkan tutorial")
+        .build(&event_loop)
+        .expect("Failed to create window!");
+
+    let app = VulkanApp::new(&window, ENABLE_VALIDATION_LAYERS);
     app.run(&mut event_loop, window).expect("Application crashed!");
 }

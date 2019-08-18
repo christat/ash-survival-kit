@@ -41,7 +41,7 @@ pub fn check_device_extension_support(instance: &Instance, device: vk::PhysicalD
                 .into_c_string()
         })
         .collect::<Vec<CString>>();
-    let mut required_extension_names = extensions::get_required_device_extensions()
+    let mut required_extension_names = extensions::get_device_extensions()
         .into_iter()
         .map(|extension_name| unsafe {
             CStr::from_ptr(extension_name)

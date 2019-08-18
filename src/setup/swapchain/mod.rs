@@ -53,8 +53,9 @@ pub fn create(
             surface,
             surface_khr,
         )
-        .expect("No queue families contain required flags!");;
-    // enable swapchaing sharing and pass relevant indices to struct iff both queue indices are the different.
+        .expect("No queue families contain required flags!");
+
+    // enable swapchain sharing and pass relevant indices to struct iff both queue indices are the different.
     let (image_sharing_mode, queue_family_indices) = match graphics == present {
         true => (vk::SharingMode::EXCLUSIVE, vec![]),
         false => (vk::SharingMode::CONCURRENT, vec![graphics, present]),
