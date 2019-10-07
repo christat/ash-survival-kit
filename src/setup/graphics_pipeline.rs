@@ -16,12 +16,12 @@ use ash::{
 
 use crate::setup::swapchain::SwapchainData;
 
-pub struct Pipeline {
+pub struct PipelineContainer {
     pub pipelines: Vec<vk::Pipeline>,
     pub pipeline_layout: vk::PipelineLayout
 }
 
-pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::RenderPass) -> Pipeline {
+pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::RenderPass) -> PipelineContainer {
     let vert_shader_raw = read_shader(Path::new("src/shaders/vert.spv"));
     let frag_shader_raw = read_shader(Path::new("src/shaders/frag.spv"));
 
@@ -151,7 +151,7 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         device.destroy_shader_module(frag_shader_module, None);
     }
 
-    Pipeline {
+    PipelineContainer {
         pipelines,
         pipeline_layout
     }

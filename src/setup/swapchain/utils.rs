@@ -1,4 +1,5 @@
 use ash::{extensions::khr::Surface, vk};
+use winit::dpi::PhysicalSize;
 
 pub struct SwapchainDetails {
     pub capabilities: vk::SurfaceCapabilitiesKHR,
@@ -64,23 +65,24 @@ pub fn select_swapchain_present_mode(
     }
 }
 
-pub fn select_swapchain_extent(capabilities: vk::SurfaceCapabilitiesKHR) -> vk::Extent2D {
+pub fn select_swapchain_extent(capabilities: vk::SurfaceCapabilitiesKHR, window_size: PhysicalSize) -> vk::Extent2D {
     if capabilities.current_extent.width != std::u32::MAX {
         capabilities.current_extent
     } else {
+        let (width, height): (u32, u32) = window_size.into();
         let extent = vk::Extent2D::builder()
             .width(u32::max(
                 capabilities.min_image_extent.width,
                 u32::min(
                     capabilities.max_image_extent.width,
-                    crate::WINDOW_WIDTH as u32,
+                    width
                 ),
             ))
             .height(u32::max(
                 capabilities.min_image_extent.height,
                 u32::min(
                     capabilities.max_image_extent.height,
-                    crate::WINDOW_HEIGHT as u32,
+                    height,
                 ),
             ))
             .build();
