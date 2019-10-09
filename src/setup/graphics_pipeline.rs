@@ -15,6 +15,7 @@ use ash::{
 };
 
 use crate::setup::swapchain::SwapchainData;
+use crate::structs::Vertex;
 
 pub struct PipelineContainer {
     pub pipelines: Vec<vk::Pipeline>,
@@ -45,7 +46,10 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
 
     let shader_stages = vec![vert_shader_stage_info, frag_shader_stage_info];
 
-    let pipeline_vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder().build();
+    let pipeline_vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder()
+        .vertex_attribute_descriptions(&Vertex::get_attribute_descriptions())
+        .vertex_binding_descriptions(&Vertex::get_binding_description())
+        .build();
 
     let pipeline_input_assembly_state_create_info = vk::PipelineInputAssemblyStateCreateInfo::builder()
         .topology(vk::PrimitiveTopology::TRIANGLE_LIST)

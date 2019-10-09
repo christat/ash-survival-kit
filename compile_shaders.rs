@@ -11,13 +11,12 @@ fn find_glsl_compiler() -> String {
         .output()
         .expect("Failed to retrieve shader compiler path!");
 
-    let mut compiler_path = String::from_utf8(output.stdout).unwrap();
-    let compiler_cmd = compiler_path.trim().to_string();
-    compiler_cmd
+    let compiler_path = String::from_utf8(output.stdout).unwrap();
+    compiler_path.trim().to_string()
 }
 
 fn compile_shader(compiler_cmd: &str, input_file: &str, output_file: &str, err_msg: &str) {
-    let mut script_dir = env::current_dir().expect("Failed to obtain current directory!");
+    let script_dir = env::current_dir().expect("Failed to obtain current directory!");
     Command::new(compiler_cmd)
         .arg(script_dir.join(Path::new("src/shaders/src")).join(input_file).to_str().unwrap())
         .arg("-o")
@@ -27,7 +26,7 @@ fn compile_shader(compiler_cmd: &str, input_file: &str, output_file: &str, err_m
 }
 
 /// Shader build script - crate [cargo-script](https://crates.io/crates/cargo-script) is used to run this from CLI.
-/// NOTE: run from the project root path. If CARGO_MANIFEST_DIR would be accessible from scripts this would be easily fixed :(
+/// NOTE: run `cargo script compile_shaders.rs` from the project root path. If CARGO_MANIFEST_DIR would be accessible from scripts path resolving would be easily fixed :(
 fn main() {
     let compiler_cmd = find_glsl_compiler();
     compile_shader(&compiler_cmd, "shader.vert", "vert.spv","Failed to compile vertex shader!");
