@@ -89,12 +89,14 @@ impl VulkanApp {
         let pipeline_container = setup::graphics_pipeline::create(&device, &swapchain_data, render_pass);
         let graphics_pipeline = pipeline_container.pipelines.first().expect("Failed to fetch pipeline!");
         let framebuffers = setup::framebuffers::create(&device, &swapchain_data, render_pass);
-        let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(&instance, &physical_device, &device, &vertices);
+
+        let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
+        let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
+
+        let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(&instance, &physical_device, &device, command_pool, graphics_queue, &vertices);
         let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline, vertex_buffer, &vertices);
 
         let frame_sync_data = setup::frame_sync::create(&device, MAX_FRAMES_IN_FLIGHT);
-        let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
-        let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
 
         Self {
             _entry: entry,
