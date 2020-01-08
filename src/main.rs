@@ -55,8 +55,10 @@ struct VulkanApp {
     pipeline_container: PipelineContainer,
     framebuffers: Vec<vk::Framebuffer>,
     vertex_buffer: vk::Buffer,
-    vertices: Vec<Vertex>,
     vertex_buffer_memory: vk::DeviceMemory,
+    index_buffer: vk::Buffer,
+    indices: Vec<u16>,
+    index_buffer_memory: vk::DeviceMemory,
     command_pool: vk::CommandPool,
     command_buffers: Vec<vk::CommandBuffer>,
     frame_sync_data: FrameSyncData,
@@ -66,7 +68,7 @@ struct VulkanApp {
 }
 
 impl VulkanApp {
-    pub fn new(window: &Window, vertices: Vec<Vertex>, enable_validation_layers: bool) -> Self {
+    pub fn new(window: &Window, vertices: Vec<Vertex>, indices: Vec<u16>, enable_validation_layers: bool) -> Self {
         let (entry, instance) = setup::instance::create(enable_validation_layers);
         let (debug_utils, debug_utils_messenger_ext) =
             setup::validation_layers::initialize(&entry, &instance, enable_validation_layers);
@@ -94,7 +96,9 @@ impl VulkanApp {
         let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
 
         let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(&instance, &physical_device, &device, command_pool, graphics_queue, &vertices);
-        let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline, vertex_buffer, &vertices);
+        let (index_buffer, index_buffer_memory) = setup::index_buffer::create(&instance, &physical_device, &device, command_pool, graphics_queue, &indices);
+
+        let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline, vertex_buffer, index_buffer, &indices);
 
         let frame_sync_data = setup::frame_sync::create(&device, MAX_FRAMES_IN_FLIGHT);
 
@@ -113,7 +117,9 @@ impl VulkanApp {
             framebuffers,
             vertex_buffer,
             vertex_buffer_memory,
-            vertices,
+            index_buffer,
+            index_buffer_memory,
+            indices,
             command_pool,
             command_buffers,
             frame_sync_data,
@@ -227,7 +233,7 @@ impl VulkanApp {
         self.pipeline_container = setup::graphics_pipeline::create(&self.device, &self.swapchain_data, self.render_pass);
         self.framebuffers = setup::framebuffers::create(&self.device, &self.swapchain_data, self.render_pass);
         let graphics_pipeline = self.pipeline_container.pipelines.first().expect("Failed to fetch pipeline!");
-        self.command_buffers = setup::command_buffers::create(&self.device, self.command_pool, &self.framebuffers, self.render_pass, self.swapchain_data.image_extent, graphics_pipeline, self.vertex_buffer, &self.vertices);
+        self.command_buffers = setup::command_buffers::create(&self.device, self.command_pool, &self.framebuffers, self.render_pass, self.swapchain_data.image_extent, graphics_pipeline, self.vertex_buffer, self.index_buffer, &self.indices);
     }
 
     unsafe fn drop_swapchain(&self) {
@@ -249,6 +255,8 @@ impl Drop for VulkanApp {
 
             self.device.destroy_buffer(self.vertex_buffer, None);
             self.device.free_memory(self.vertex_buffer_memory, None);
+            self.device.destroy_buffer(self.index_buffer, None);
+            self.device.free_memory(self.index_buffer_memory, None);
             self.frame_sync_data.image_available_semaphores.iter().for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
             self.frame_sync_data.render_finished_semaphores.iter().for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
             self.frame_sync_data.in_flight_fences.iter().for_each(|fence| self.device.destroy_fence(*fence, None));
@@ -271,10 +279,13 @@ impl Drop for VulkanApp {
 
 fn main() {
     let vertices: Vec<Vertex> = vec![
-        Vertex::new(0.0, -0.5, 1.0, 1.0, 1.0),
-        Vertex::new(0.5, 0.5, 0.0, 1.0, 0.0),
-        Vertex::new(-0.5, 0.5, 0.0, 0.0, 1.0)
+        Vertex::new(-0.5, -0.5, 1.0, 0.0, 0.0),
+        Vertex::new(0.5, -0.5, 0.0, 1.0, 0.0),
+        Vertex::new(0.5, 0.5, 0.0, 0.0, 1.0),
+        Vertex::new(-0.5, 0.5, 1.0, 1.0, 1.0)
     ];
+
+    let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
 
     let mut event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -286,6 +297,6 @@ fn main() {
         .build(&event_loop)
         .expect("Failed to create window!");
 
-    let mut app = VulkanApp::new(&window, vertices,  ENABLE_VALIDATION_LAYERS);
+    let mut app = VulkanApp::new(&window, vertices, indices, ENABLE_VALIDATION_LAYERS);
     app.run(&mut event_loop, window).expect("Application crashed!");
 }

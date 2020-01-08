@@ -12,3 +12,4 @@ pub mod render_pass;
 pub mod swapchain;
 pub mod validation_layers;
 pub mod vertex_buffer;
+pub mod index_buffer;
