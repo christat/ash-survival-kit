@@ -17,12 +17,7 @@ use ash::{
 use crate::setup::swapchain::SwapchainData;
 use crate::structs::Vertex;
 
-pub struct PipelineContainer {
-    pub pipelines: Vec<vk::Pipeline>,
-    pub pipeline_layout: vk::PipelineLayout
-}
-
-pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::RenderPass) -> PipelineContainer {
+pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::RenderPass, descriptor_set_layout: &vk::DescriptorSetLayout) -> (Vec<vk::Pipeline>, vk::PipelineLayout) {
     let vert_shader_raw = read_shader(Path::new("src/shaders/vert.spv"));
     let frag_shader_raw = read_shader(Path::new("src/shaders/frag.spv"));
 
@@ -127,7 +122,7 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .build();
     */
 
-    let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder().build();
+    let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder().set_layouts(&[*descriptor_set_layout]).build();
 
     let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_create_info, None).expect("Failed to create pipeline layout!") };
 
@@ -155,10 +150,7 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         device.destroy_shader_module(frag_shader_module, None);
     }
 
-    PipelineContainer {
-        pipelines,
-        pipeline_layout
-    }
+    (pipelines, pipeline_layout)
 }
 
 fn read_shader(file_path: &Path) -> Vec<u32> {
