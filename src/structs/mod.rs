@@ -6,7 +6,6 @@ use cgmath::{
     Vector2,
     Vector3
 };
-use cgmath::prelude::*;
 
 use field_offset::offset_of;
 
@@ -52,13 +51,7 @@ impl Vertex {
 }
 
 pub struct UBO {
-    model: Matrix4<f32>,
-    view: Matrix4<f32>,
-    projection: Matrix4<f32>
-}
-
-impl UBO {
-    pub fn new(model: Matrix4<f32>, view: Matrix4<f32>, projection: Matrix4<f32>) -> Self {
-        Self { model, view, projection }
-    }
+    pub model: Matrix4<f32>,
+    pub view: Matrix4<f32>,
+    pub projection: Matrix4<f32>
 }

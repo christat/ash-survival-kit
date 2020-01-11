@@ -28,6 +28,7 @@ pub fn create(instance: &Instance, device: &Device, phys_device: &PhysicalDevice
 		.build();
 		
 	let buffer_memory = unsafe { device.allocate_memory(&alloc_info, None).expect("Failed to allocate buffer memory!") };
+
 	unsafe { device.bind_buffer_memory(buffer, buffer_memory, 0).expect("Failed to bind buffer memory!") };
 	(buffer, buffer_memory)
 }
@@ -52,34 +53,31 @@ pub fn copy(device: &Device, command_pool: vk::CommandPool, queue: vk::Queue, sr
 		.build();
 
 	let command_buffers = unsafe { device.allocate_command_buffers(&allocate_info).expect("Failed to allocate command buffers!") };
+	let command_buffer = command_buffers.get(0).expect("Failed to retrieve command buffer!");
 
 	let begin_info = vk::CommandBufferBeginInfo::builder()
 		.flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
 		.build();
 
-	unsafe { device.begin_command_buffer(command_buffers[0], &begin_info).expect("Failed to begin command buffer!") };
+	unsafe { device.begin_command_buffer(*command_buffer, &begin_info).expect("Failed to begin command buffer!") };
 
-	let copy_regions = [
-		vk::BufferCopy::builder()
-			.src_offset(0)
-			.dst_offset(0)
-			.size(size)
-			.build()
-		];
+	let copy_region = vk::BufferCopy::builder()
+		.src_offset(0)
+		.dst_offset(0)
+		.size(size)
+		.build();
 
 	unsafe { 
-		device.cmd_copy_buffer(command_buffers[0], src_buffer, dst_buffer, &copy_regions);
-		device.end_command_buffer(command_buffers[0]).expect("Failed to end command buffer!");
+		device.cmd_copy_buffer(*command_buffer, src_buffer, dst_buffer, &[copy_region]);
+		device.end_command_buffer(*command_buffer).expect("Failed to end command buffer!");
 	}
 
-	let submit_infos = [
-		vk::SubmitInfo::builder()
-			.command_buffers(&command_buffers)
-			.build()
-		];
+	let submit_info = vk::SubmitInfo::builder()
+		.command_buffers(&command_buffers)
+		.build();
 
 	unsafe {
-		device.queue_submit(queue, &submit_infos, vk::Fence::null()).expect("Failed to submit to queue!");
+		device.queue_submit(queue, &[submit_info], vk::Fence::null()).expect("Failed to submit to queue!");
 		device.queue_wait_idle(queue).expect("Failed waiting for queue idle!");
 		device.free_command_buffers(command_pool, &command_buffers)
 	}

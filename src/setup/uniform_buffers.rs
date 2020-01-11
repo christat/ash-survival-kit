@@ -11,15 +11,17 @@ use crate::structs::UBO;
 use crate::setup::buffer;
 
 pub fn create_descriptor_set_layout(device: &Device) -> vk::DescriptorSetLayout {
-    let ubo_layout_binding = vk::DescriptorSetLayoutBinding::builder()
-        .binding(0)
-        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-        .descriptor_count(1)
-        .stage_flags(vk::ShaderStageFlags::VERTEX)
-        .build();
+    let ubo_layout_binding = [
+        vk::DescriptorSetLayoutBinding::builder()
+            .binding(0)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::VERTEX)
+            .build()
+    ];
 
     let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
-        .bindings(&[ubo_layout_binding])
+        .bindings(&ubo_layout_binding)
         .build();
 
     let descriptor_set_layout = unsafe { device.create_descriptor_set_layout(&layout_info, None).expect("Failed to create descriptor set layout!") };
@@ -40,4 +42,52 @@ pub fn create(instance: &Instance, device: &Device, physical_device: &vk::Physic
     }
 
     (uniform_buffers, uniform_buffers_memory)
+}
+
+pub fn create_descriptor_pool(device: &Device, swapchain_images: &[vk::Image]) -> vk::DescriptorPool {
+    println!("count: {}", swapchain_images.len());
+    let pool_size = vk::DescriptorPoolSize::builder()
+        .descriptor_count(swapchain_images.len() as u32)
+        .build();
+
+    let pool_info = vk::DescriptorPoolCreateInfo::builder()
+        .pool_sizes(&[pool_size])
+        .max_sets(swapchain_images.len() as u32)
+        .build();
+
+    let descriptor_pool = unsafe { device.create_descriptor_pool(&pool_info, None).expect("Failed to create descriptor pool!") };
+    descriptor_pool
+}
+
+pub fn create_descriptor_sets(device: &Device, descriptor_pool: vk::DescriptorPool, descriptor_set_layout: vk::DescriptorSetLayout, uniform_buffers: &[vk::Buffer], swapchain_images: &[vk::Image]) -> Vec<vk::DescriptorSet> {
+    let layouts = vec![descriptor_set_layout; swapchain_images.len()];
+
+    let alloc_info = vk::DescriptorSetAllocateInfo::builder()
+        .descriptor_pool(descriptor_pool)
+        .set_layouts(&layouts)
+        .build();
+
+    // TODO find out why descriptor pool cannot allocate 3 descriptors???
+    // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VUID-VkDescriptorSetAllocateInfo-descriptorPool-00307
+    let descriptor_sets = unsafe { device.allocate_descriptor_sets(&alloc_info).expect("Failed to allocate descriptor sets!") };
+
+    descriptor_sets.iter().zip(uniform_buffers).for_each(|(descriptor_set, uniform_buffer)| {
+        let buffer_info = vk::DescriptorBufferInfo::builder()
+            .buffer(*uniform_buffer)
+            .offset(0)
+            .range(size_of::<UBO>() as u64)
+            .build();
+
+        let descriptor_write = vk::WriteDescriptorSet::builder()
+            .dst_set(*descriptor_set)
+            .dst_binding(0)
+            .dst_array_element(0)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .buffer_info(&[buffer_info])
+            .build();
+
+        unsafe { device.update_descriptor_sets(&[descriptor_write], &[]); }
+    });
+
+    descriptor_sets
 }

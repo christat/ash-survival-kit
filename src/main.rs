@@ -14,7 +14,6 @@ use ash::{
 
 extern crate cgmath;
 use cgmath::{
-    prelude::*,
     Deg, Matrix4,
     Point3, Vector3
 };
@@ -78,6 +77,9 @@ struct VulkanApp {
     uniform_buffers: Vec<vk::Buffer>,
     uniform_buffers_memory: Vec<vk::DeviceMemory>,
 
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_sets: Vec<vk::DescriptorSet>,
+
     command_pool: vk::CommandPool,
     command_buffers: Vec<vk::CommandBuffer>,
     frame_sync_data: FrameSyncData,
@@ -120,8 +122,11 @@ impl VulkanApp {
         let (index_buffer, index_buffer_memory) = setup::index_buffer::create(&instance, &physical_device, &device, command_pool, graphics_queue, &indices);
 
         let (uniform_buffers, uniform_buffers_memory) = setup::uniform_buffers::create(&instance, &device, &physical_device, &swapchain_data.swapchain_images);
+        let descriptor_pool = setup::uniform_buffers::create_descriptor_pool(&device, &swapchain_data.swapchain_images);
+        let descriptor_sets = setup::uniform_buffers::create_descriptor_sets(&device, descriptor_pool, descriptor_set_layout, &uniform_buffers, &swapchain_data.swapchain_images);
 
-        let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline, vertex_buffer, index_buffer, &indices);
+
+        let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline, pipeline_layout, &descriptor_sets, vertex_buffer, index_buffer, &indices);
 
         let frame_sync_data = setup::frame_sync::create(&device, MAX_FRAMES_IN_FLIGHT);
 
@@ -147,6 +152,8 @@ impl VulkanApp {
             indices,
             uniform_buffers,
             uniform_buffers_memory,
+            descriptor_pool,
+            descriptor_sets,
             command_pool,
             command_buffers,
             frame_sync_data,
@@ -254,37 +261,41 @@ impl VulkanApp {
     fn update_uniform_buffer(&self, image_index: u32, init_timestamp: &Instant) {
         let elapsed_seconds = init_timestamp.elapsed().as_secs_f32();
 
-        // perspective projection borrowed from:
-        // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/building-basic-perspective-projection-matrix
-        let vk::Extent2D { width, height } = self.swapchain_data.image_extent;
-        let fov = width as f32 / height as f32;
-        let s = 1.0 / ((fov / 2.0) * (std::f32::consts::PI / 180.0)).tan();
-        let near = 1.0;
-        let far = 10.0;
-        let c2r2 = - far / (far - near);
-        let c3r2 = - (far * near) / (far - near);
-
-        let ubo = UBO::new(
-            Matrix4::from_angle_z(Deg(90.0 * elapsed_seconds)),
-            Matrix4::look_at(
-                Point3::new(2.0, 2.0, 2.0),
-                Point3::new(0.0, 0.0, 0.0),
+        let ubo = UBO {
+            model: Matrix4::from_angle_z(Deg(90.0 * elapsed_seconds)),
+            view: Matrix4::look_at(
+                Point3::new(2.0, 2.0, 1.0),
+                Point3::new(0.0, 0.0, 0.5),
                 Vector3::new(0.0, 0.0, 1.0),
             ),
-            #[cfg_attr(rustfmt, rustfmt_skip)]
-            Matrix4::new(
-                  s,    0.0,    0.0,      0.0,
-                0.0,     -s,    0.0,      0.0,
-                0.0,    0.0,   c2r2,     c3r2,
-                0.0,    0.0,   -1.0,      0.0
-            )
-        );
+            projection: self.build_projection_matrix(45.0, 1.0, 10.0)
+        };
 
         unsafe {
             let data_ptr = self.device.map_memory(self.uniform_buffers_memory[image_index as usize], 0, size_of::<UBO>() as u64, vk::MemoryMapFlags::empty()).expect("Failed to map uniform buffer memory!");
             copy_nonoverlapping(&ubo, data_ptr as *mut UBO, 1);
             self.device.unmap_memory(self.uniform_buffers_memory[image_index as usize]);
         };
+    }
+
+    fn build_projection_matrix(&self, fov: f32, f_near: f32, f_far: f32) -> Matrix4<f32> {
+        let vk::Extent2D { width, height } = self.swapchain_data.image_extent;
+        let aspect_ratio = width as f32 / height as f32;
+
+        let scale = 1.0 / (0.5 * fov * std::f32::consts::PI / 180.0).tan();
+        let c0r0 = scale / aspect_ratio;
+        let c2r2 = - f_far / (f_far - f_near);
+        let c3r2 = - (f_far * f_near) / (f_far - f_near);
+
+        // perspective projection borrowed from:
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/building-basic-perspective-projection-matrix
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Matrix4::new(
+            c0r0,    0.0,    0.0,      0.0,
+             0.0, -scale,    0.0,      0.0,
+             0.0,    0.0,   c2r2,     c3r2,
+             0.0,    0.0,   -1.0,      0.0
+        )
     }
 
     fn device_wait_idle(&self) {
@@ -303,10 +314,15 @@ impl VulkanApp {
         let graphics_pipeline = self.pipelines.first().expect("Failed to fetch pipeline!");
 
         self.framebuffers = setup::framebuffers::create(&self.device, &self.swapchain_data, self.render_pass);
+
         let (uniform_buffers, uniform_buffers_memory) = setup::uniform_buffers::create(&self.instance, &self.device, &self.physical_device, &self.swapchain_data.swapchain_images);
         self.uniform_buffers = uniform_buffers;
         self.uniform_buffers_memory = uniform_buffers_memory;
-        self.command_buffers = setup::command_buffers::create(&self.device, self.command_pool, &self.framebuffers, self.render_pass, self.swapchain_data.image_extent, graphics_pipeline, self.vertex_buffer, self.index_buffer, &self.indices);
+
+        self.descriptor_pool = setup::uniform_buffers::create_descriptor_pool(&self.device, &self.swapchain_data.swapchain_images);
+        self.descriptor_sets = setup::uniform_buffers::create_descriptor_sets(&self.device, self.descriptor_pool, self.descriptor_set_layout, &self.uniform_buffers, &self.swapchain_data.swapchain_images);
+        
+        self.command_buffers = setup::command_buffers::create(&self.device, self.command_pool, &self.framebuffers, self.render_pass, self.swapchain_data.image_extent, graphics_pipeline, self.pipeline_layout, &self.descriptor_sets, self.vertex_buffer, self.index_buffer, &self.indices);
     }
 
     unsafe fn drop_swapchain(&self) {
@@ -323,6 +339,7 @@ impl VulkanApp {
             self.device.destroy_buffer(*buffer, None);
             self.device.free_memory(*memory, None);
         });
+        self.device.destroy_descriptor_pool(self.descriptor_pool, None);
     }
 }
 

@@ -4,7 +4,7 @@ use ash::{
     version::DeviceV1_0
 };
 
-pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk::Framebuffer], render_pass: vk::RenderPass, swapchain_extent: vk::Extent2D, pipeline: &vk::Pipeline, vertex_buffer: vk::Buffer, index_buffer: vk::Buffer, indices: &[u16]) -> Vec<vk::CommandBuffer> {
+pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk::Framebuffer], render_pass: vk::RenderPass, swapchain_extent: vk::Extent2D, pipeline: &vk::Pipeline, pipeline_layout: vk::PipelineLayout, descriptor_sets: &[vk::DescriptorSet], vertex_buffer: vk::Buffer, index_buffer: vk::Buffer, indices: &[u16]) -> Vec<vk::CommandBuffer> {
     let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(command_pool)
         .level(vk::CommandBufferLevel::PRIMARY)
@@ -12,7 +12,7 @@ pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk
         .build();
 
     let command_buffers = unsafe { device.allocate_command_buffers(&command_buffer_allocate_info).expect("Failed to allocate command buffers!") };
-    let command_buffers = command_buffers.into_iter().zip(framebuffers).map(|(command_buffer, framebuffer)| {
+    let command_buffers = command_buffers.into_iter().zip(framebuffers).zip(descriptor_sets).map(|((command_buffer, framebuffer), descriptor_set)| {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().build();
 
         unsafe { device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Failed to begin recording command buffer!") };
@@ -47,6 +47,7 @@ pub fn create(device: &Device, command_pool: vk::CommandPool, framebuffers: &[vk
             device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, *pipeline);
             device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
             device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT16);
+            device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_layout, 0, &[*descriptor_set], &[]);
             device.cmd_draw_indexed(command_buffer, indices.len() as u32, 1, 0, 0, 0);
             device.cmd_end_render_pass(command_buffer);
             device.end_command_buffer(command_buffer).expect("Failed to record command buffer!");

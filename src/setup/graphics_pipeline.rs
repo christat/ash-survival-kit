@@ -78,7 +78,7 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .polygon_mode(vk::PolygonMode::FILL)
         .line_width(1.0)
         .cull_mode(vk::CullModeFlags::BACK)
-        .front_face(vk::FrontFace::CLOCKWISE)
+        .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
         .depth_bias_enable(false)
         .depth_bias_constant_factor(0.0)
         .depth_bias_clamp(0.0)
@@ -122,7 +122,9 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .build();
     */
 
-    let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder().set_layouts(&[*descriptor_set_layout]).build();
+    let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder()
+        .set_layouts(&[*descriptor_set_layout])
+        .build();
 
     let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_create_info, None).expect("Failed to create pipeline layout!") };
 
