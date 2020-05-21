@@ -50,6 +50,8 @@ impl Vertex {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Debug, Copy)]
 pub struct UBO {
     pub model: Matrix4<f32>,
     pub view: Matrix4<f32>,

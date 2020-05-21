@@ -125,7 +125,6 @@ impl VulkanApp {
         let descriptor_pool = setup::uniform_buffers::create_descriptor_pool(&device, &swapchain_data.swapchain_images);
         let descriptor_sets = setup::uniform_buffers::create_descriptor_sets(&device, descriptor_pool, descriptor_set_layout, &uniform_buffers, &swapchain_data.swapchain_images);
 
-
         let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline, pipeline_layout, &descriptor_sets, vertex_buffer, index_buffer, &indices);
 
         let frame_sync_data = setup::frame_sync::create(&device, MAX_FRAMES_IN_FLIGHT);
@@ -334,11 +333,11 @@ impl VulkanApp {
         self.swapchain_data.swapchain_image_views.iter().for_each(|view| self.device.destroy_image_view(*view, None));
         self.swapchain_data.swapchain.destroy_swapchain(self.swapchain_data.swapchain_khr, None);
 
+        self.device.destroy_descriptor_pool(self.descriptor_pool, None);
         self.uniform_buffers.iter().zip(&self.uniform_buffers_memory).for_each(|(buffer, memory)| {
             self.device.destroy_buffer(*buffer, None);
             self.device.free_memory(*memory, None);
         });
-        self.device.destroy_descriptor_pool(self.descriptor_pool, None);
     }
 }
 

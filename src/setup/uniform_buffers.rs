@@ -45,8 +45,8 @@ pub fn create(instance: &Instance, device: &Device, physical_device: &vk::Physic
 }
 
 pub fn create_descriptor_pool(device: &Device, swapchain_images: &[vk::Image]) -> vk::DescriptorPool {
-    println!("count: {}", swapchain_images.len());
     let pool_size = vk::DescriptorPoolSize::builder()
+        .ty(vk::DescriptorType::UNIFORM_BUFFER)
         .descriptor_count(swapchain_images.len() as u32)
         .build();
 
@@ -67,8 +67,6 @@ pub fn create_descriptor_sets(device: &Device, descriptor_pool: vk::DescriptorPo
         .set_layouts(&layouts)
         .build();
 
-    // TODO find out why descriptor pool cannot allocate 3 descriptors???
-    // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VUID-VkDescriptorSetAllocateInfo-descriptorPool-00307
     let descriptor_sets = unsafe { device.allocate_descriptor_sets(&alloc_info).expect("Failed to allocate descriptor sets!") };
 
     descriptor_sets.iter().zip(uniform_buffers).for_each(|(descriptor_set, uniform_buffer)| {
