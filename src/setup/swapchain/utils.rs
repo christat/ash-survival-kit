@@ -65,7 +65,7 @@ pub fn select_swapchain_present_mode(
     }
 }
 
-pub fn select_swapchain_extent(capabilities: vk::SurfaceCapabilitiesKHR, window_size: PhysicalSize) -> vk::Extent2D {
+pub fn select_swapchain_extent(capabilities: vk::SurfaceCapabilitiesKHR, window_size: PhysicalSize<u32>) -> vk::Extent2D {
     if capabilities.current_extent.width != std::u32::MAX {
         capabilities.current_extent
     } else {

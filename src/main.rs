@@ -105,7 +105,7 @@ impl VulkanApp {
             enable_validation_layers,
         );
 
-        let physical_window_size = window.outer_size().to_physical(window.current_monitor().hidpi_factor());
+        let physical_window_size = window.outer_size();
         let swapchain_data = SwapchainData::new(&instance, physical_device, &device, &surface, surface_khr, physical_window_size);
         let render_pass = setup::render_pass::create(&device, &swapchain_data);
         let command_pool = setup::command_pool::create(&device, &queue_family_indices);
@@ -163,7 +163,7 @@ impl VulkanApp {
     }
 
     pub fn run(&mut self, event_loop: &mut EventLoop<()>, window: Window) -> Result<(), Box<dyn Error>> {
-        let mut physical_window_size = window.outer_size().to_physical(window.current_monitor().hidpi_factor());
+        let physical_window_size = window.outer_size();
         let mut current_frame: usize = 0;
         let mut framebuffer_resized = false;
         let init_stamp = Instant::now();
@@ -171,8 +171,7 @@ impl VulkanApp {
         event_loop.run_return(|event, _, control_flow| {
             match event {
                 Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::Resized(logical_size) => {
-                        physical_window_size = logical_size.to_physical(window.current_monitor().hidpi_factor());
+                    WindowEvent::Resized(physical_window_size) => {
                         framebuffer_resized = true;
                         let (width, height): (u32, u32) = physical_window_size.into();
                         if width == 0 || height == 0 {
@@ -194,7 +193,7 @@ impl VulkanApp {
         Ok(())
     }
 
-    fn draw_frame(&mut self, current_frame: usize, physical_window_size: &winit::dpi::PhysicalSize, framebuffer_resized: &mut bool, init_timestamp: &Instant) -> Result<(), vk::Result> {
+    fn draw_frame(&mut self, current_frame: usize, physical_window_size: &winit::dpi::PhysicalSize<u32>, framebuffer_resized: &mut bool, init_timestamp: &Instant) -> Result<(), vk::Result> {
         let timeout = std::u64::MAX;
         let fences = [self.frame_sync_data.in_flight_fences[current_frame]];
         unsafe { self.device.wait_for_fences(&fences, true, timeout).expect("Failed to wait for fences!"); }
@@ -302,7 +301,7 @@ impl VulkanApp {
         unsafe { self.device.device_wait_idle().expect("Failed to wait for device to become idle!"); }
     }
 
-    unsafe fn recreate_swapchain(&mut self, physical_window_size: &winit::dpi::PhysicalSize) {
+    unsafe fn recreate_swapchain(&mut self, physical_window_size: &winit::dpi::PhysicalSize<u32>) {
         self.device_wait_idle();
         self.drop_swapchain();
 

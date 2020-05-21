@@ -23,7 +23,7 @@ impl SwapchainData {
         device: &Device,
         surface: &Surface,
         surface_khr: vk::SurfaceKHR,
-        physical_window_size: PhysicalSize
+        physical_window_size: PhysicalSize<u32>
     ) -> Self {
         let utils::SwapchainDetails {
             capabilities,

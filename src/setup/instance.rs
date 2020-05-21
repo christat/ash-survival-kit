@@ -19,7 +19,7 @@ pub fn create(
     // Application Info
     let application_name = CString::new("Hello triangle").unwrap();
     let engine_name = CString::new("No engine").unwrap();
-    let version = ash::vk_make_version!(1, 0, 0);
+    let version = vk::make_version(1, 0, 0);
 
     let application_info = vk::ApplicationInfo::builder()
         .application_name(&application_name)

@@ -103,7 +103,7 @@ pub fn get_physical_device_queue_family_indices(
                     physical_device,
                     queue_index,
                     surface_khr,
-                )
+                ).expect("Failed to get physical device surface support!")
             };
             if indices.present.is_none() && supports_surface {
                 indices.present = Some(queue_index);
