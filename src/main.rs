@@ -170,6 +170,8 @@ impl VulkanApp {
             descriptor_set_layout,
             &uniform_buffers,
             &swapchain_data.swapchain_images,
+            texture_image_view,
+            texture_sampler,
         );
 
         let command_buffers = setup::command_buffers::create(
@@ -460,6 +462,8 @@ impl VulkanApp {
             self.descriptor_set_layout,
             &self.uniform_buffers,
             &self.swapchain_data.swapchain_images,
+            self.texture_image_view,
+            self.texture_sampler,
         );
 
         self.command_buffers = setup::command_buffers::create(
@@ -557,10 +561,10 @@ impl Drop for VulkanApp {
 
 fn main() {
     let vertices: Vec<Vertex> = vec![
-        Vertex::new(-0.5, -0.5, 1.0, 0.0, 0.0),
-        Vertex::new(0.5, -0.5, 0.0, 1.0, 0.0),
-        Vertex::new(0.5, 0.5, 0.0, 0.0, 1.0),
-        Vertex::new(-0.5, 0.5, 1.0, 1.0, 1.0),
+        Vertex::new(-0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0),
+        Vertex::new(0.5, -0.5, 0.0, 1.0, 0.0, 1.0, 0.0),
+        Vertex::new(0.5, 0.5, 0.0, 0.0, 1.0, 1.0, 1.0),
+        Vertex::new(-0.5, 0.5, 1.0, 1.0, 1.0, 0.0, 1.0),
     ];
 
     let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];

@@ -12,7 +12,7 @@ pub fn create(
     command_pool: vk::CommandPool,
     queue: vk::Queue,
 ) -> (vk::Image, vk::DeviceMemory) {
-    let src = image::open("src/resources/img/rmd_logo.jpg").unwrap();
+    let src = image::open("src/resources/img/statue.png").expect("Failed to load image from path!");
     let (width, height) = src.dimensions();
     let image_size = (std::mem::size_of::<u8>() as u32 * width * height * 4) as vk::DeviceSize;
     let src_bytes = src.to_bytes();

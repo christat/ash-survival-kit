@@ -40,7 +40,7 @@ pub fn select_swapchain_surface_format(
     let selected_format = available_formats.into_iter().skip(1).fold(
         first_available_format,
         |acc, available_format| {
-            if available_format.format == vk::Format::B8G8R8A8_UNORM
+            if available_format.format == vk::Format::B8G8R8A8_SRGB
                 && available_format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
             {
                 available_format
@@ -65,7 +65,10 @@ pub fn select_swapchain_present_mode(
     }
 }
 
-pub fn select_swapchain_extent(capabilities: vk::SurfaceCapabilitiesKHR, window_size: PhysicalSize<u32>) -> vk::Extent2D {
+pub fn select_swapchain_extent(
+    capabilities: vk::SurfaceCapabilitiesKHR,
+    window_size: PhysicalSize<u32>,
+) -> vk::Extent2D {
     if capabilities.current_extent.width != std::u32::MAX {
         capabilities.current_extent
     } else {
@@ -73,17 +76,11 @@ pub fn select_swapchain_extent(capabilities: vk::SurfaceCapabilitiesKHR, window_
         let extent = vk::Extent2D::builder()
             .width(u32::max(
                 capabilities.min_image_extent.width,
-                u32::min(
-                    capabilities.max_image_extent.width,
-                    width
-                ),
+                u32::min(capabilities.max_image_extent.width, width),
             ))
             .height(u32::max(
                 capabilities.min_image_extent.height,
-                u32::min(
-                    capabilities.max_image_extent.height,
-                    height,
-                ),
+                u32::min(capabilities.max_image_extent.height, height),
             ))
             .build();
         extent
