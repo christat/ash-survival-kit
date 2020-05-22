@@ -1,9 +1,4 @@
-use std::{
-    error::Error,
-    time::Instant,
-    mem::size_of,
-    ptr::copy_nonoverlapping
-};
+use std::{error::Error, mem::size_of, ptr::copy_nonoverlapping, time::Instant};
 
 extern crate ash;
 use ash::{
@@ -13,10 +8,7 @@ use ash::{
 };
 
 extern crate cgmath;
-use cgmath::{
-    Deg, Matrix4,
-    Point3, Vector3
-};
+use cgmath::{Deg, Matrix4, Point3, Vector3};
 
 extern crate field_offset;
 
@@ -30,13 +22,10 @@ use winit::{
 };
 
 mod setup;
-use crate::setup::{
-    swapchain::SwapchainData,
-    frame_sync::FrameSyncData
-};
+use crate::setup::{frame_sync::FrameSyncData, swapchain::SwapchainData};
 
 mod structs;
-use structs::{UBO, Vertex};
+use structs::{Vertex, UBO};
 
 #[cfg(debug_assertions)]
 pub const ENABLE_VALIDATION_LAYERS: bool = true;
@@ -86,17 +75,24 @@ struct VulkanApp {
 
     graphics_queue: vk::Queue,
     present_queue: vk::Queue,
+
+    texture_image: vk::Image,
+    texture_image_memory: vk::DeviceMemory,
 }
 
 impl VulkanApp {
-    pub fn new(window: &Window, vertices: Vec<Vertex>, indices: Vec<u16>, enable_validation_layers: bool) -> Self {
+    pub fn new(
+        window: &Window,
+        vertices: Vec<Vertex>,
+        indices: Vec<u16>,
+        enable_validation_layers: bool,
+    ) -> Self {
         let (entry, instance) = setup::instance::create(enable_validation_layers);
         let (debug_utils, debug_utils_messenger_ext) =
             setup::validation_layers::initialize(&entry, &instance, enable_validation_layers);
         let surface = Surface::new(&entry, &instance);
         let surface_khr = setup::platform::surface_khr::create(&entry, &instance, window);
-        let physical_device =
-            setup::devices::physical::select(&instance, &surface, surface_khr);
+        let physical_device = setup::devices::physical::select(&instance, &surface, surface_khr);
         let (device, queue_family_indices) = setup::devices::logical::create(
             &instance,
             physical_device,
@@ -106,26 +102,85 @@ impl VulkanApp {
         );
 
         let physical_window_size = window.outer_size();
-        let swapchain_data = SwapchainData::new(&instance, physical_device, &device, &surface, surface_khr, physical_window_size);
+        let swapchain_data = SwapchainData::new(
+            &instance,
+            physical_device,
+            &device,
+            &surface,
+            surface_khr,
+            physical_window_size,
+        );
         let render_pass = setup::render_pass::create(&device, &swapchain_data);
         let command_pool = setup::command_pool::create(&device, &queue_family_indices);
 
         let descriptor_set_layout = setup::uniform_buffers::create_descriptor_set_layout(&device);
-        let (pipelines, pipeline_layout) = setup::graphics_pipeline::create(&device, &swapchain_data, render_pass, &descriptor_set_layout);
+        let (pipelines, pipeline_layout) = setup::graphics_pipeline::create(
+            &device,
+            &swapchain_data,
+            render_pass,
+            &descriptor_set_layout,
+        );
         let graphics_pipeline = pipelines.first().expect("Failed to fetch pipeline!");
         let framebuffers = setup::framebuffers::create(&device, &swapchain_data, render_pass);
 
         let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
 
-        let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(&instance, &physical_device, &device, command_pool, graphics_queue, &vertices);
-        let (index_buffer, index_buffer_memory) = setup::index_buffer::create(&instance, &physical_device, &device, command_pool, graphics_queue, &indices);
+        let (texture_image, texture_image_memory) = setup::texture_image::create(
+            &instance,
+            &device,
+            &physical_device,
+            command_pool,
+            graphics_queue,
+        );
+        let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(
+            &instance,
+            &physical_device,
+            &device,
+            command_pool,
+            graphics_queue,
+            &vertices,
+        );
+        let (index_buffer, index_buffer_memory) = setup::index_buffer::create(
+            &instance,
+            &physical_device,
+            &device,
+            command_pool,
+            graphics_queue,
+            &indices,
+        );
 
-        let (uniform_buffers, uniform_buffers_memory) = setup::uniform_buffers::create(&instance, &device, &physical_device, &swapchain_data.swapchain_images);
-        let descriptor_pool = setup::uniform_buffers::create_descriptor_pool(&device, &swapchain_data.swapchain_images);
-        let descriptor_sets = setup::uniform_buffers::create_descriptor_sets(&device, descriptor_pool, descriptor_set_layout, &uniform_buffers, &swapchain_data.swapchain_images);
+        let (uniform_buffers, uniform_buffers_memory) = setup::uniform_buffers::create(
+            &instance,
+            &device,
+            &physical_device,
+            &swapchain_data.swapchain_images,
+        );
+        let descriptor_pool = setup::uniform_buffers::create_descriptor_pool(
+            &device,
+            &swapchain_data.swapchain_images,
+        );
+        let descriptor_sets = setup::uniform_buffers::create_descriptor_sets(
+            &device,
+            descriptor_pool,
+            descriptor_set_layout,
+            &uniform_buffers,
+            &swapchain_data.swapchain_images,
+        );
 
-        let command_buffers = setup::command_buffers::create(&device, command_pool, &framebuffers, render_pass, swapchain_data.image_extent, graphics_pipeline, pipeline_layout, &descriptor_sets, vertex_buffer, index_buffer, &indices);
+        let command_buffers = setup::command_buffers::create(
+            &device,
+            command_pool,
+            &framebuffers,
+            render_pass,
+            swapchain_data.image_extent,
+            graphics_pipeline,
+            pipeline_layout,
+            &descriptor_sets,
+            vertex_buffer,
+            index_buffer,
+            &indices,
+        );
 
         let frame_sync_data = setup::frame_sync::create(&device, MAX_FRAMES_IN_FLIGHT);
 
@@ -157,11 +212,17 @@ impl VulkanApp {
             command_buffers,
             frame_sync_data,
             graphics_queue,
-            present_queue
+            present_queue,
+            texture_image,
+            texture_image_memory,
         }
     }
 
-    pub fn run(&mut self, event_loop: &mut EventLoop<()>, window: Window) -> Result<(), Box<dyn Error>> {
+    pub fn run(
+        &mut self,
+        event_loop: &mut EventLoop<()>,
+        window: Window,
+    ) -> Result<(), Box<dyn Error>> {
         let physical_window_size = window.outer_size();
         let mut current_frame: usize = 0;
         let mut framebuffer_resized = false;
@@ -178,13 +239,19 @@ impl VulkanApp {
                         } else {
                             *control_flow = ControlFlow::Poll;
                         }
-                    },
+                    }
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    _ => *control_flow = ControlFlow::Poll
+                    _ => *control_flow = ControlFlow::Poll,
                 },
                 _ => *control_flow = ControlFlow::Poll,
             }
-            self.draw_frame(current_frame, &physical_window_size, &mut framebuffer_resized, &init_stamp).expect("Failed to draw frame!");
+            self.draw_frame(
+                current_frame,
+                &physical_window_size,
+                &mut framebuffer_resized,
+                &init_stamp,
+            )
+            .expect("Failed to draw frame!");
             current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
         });
 
@@ -192,44 +259,67 @@ impl VulkanApp {
         Ok(())
     }
 
-    fn draw_frame(&mut self, current_frame: usize, physical_window_size: &winit::dpi::PhysicalSize<u32>, framebuffer_resized: &mut bool, init_timestamp: &Instant) -> Result<(), vk::Result> {
+    fn draw_frame(
+        &mut self,
+        current_frame: usize,
+        physical_window_size: &winit::dpi::PhysicalSize<u32>,
+        framebuffer_resized: &mut bool,
+        init_timestamp: &Instant,
+    ) -> Result<(), vk::Result> {
         let timeout = std::u64::MAX;
         let fences = [self.frame_sync_data.in_flight_fences[current_frame]];
-        unsafe { self.device.wait_for_fences(&fences, true, timeout).expect("Failed to wait for fences!"); }
+        unsafe {
+            self.device
+                .wait_for_fences(&fences, true, timeout)
+                .expect("Failed to wait for fences!");
+        }
 
-        let acquire_next_image_result = unsafe { self.swapchain_data.swapchain.acquire_next_image(self.swapchain_data.swapchain_khr, timeout, self.frame_sync_data.image_available_semaphores[current_frame], vk::Fence::null())  };
+        let acquire_next_image_result = unsafe {
+            self.swapchain_data.swapchain.acquire_next_image(
+                self.swapchain_data.swapchain_khr,
+                timeout,
+                self.frame_sync_data.image_available_semaphores[current_frame],
+                vk::Fence::null(),
+            )
+        };
         let (image_index, _is_suboptimal) = match acquire_next_image_result {
             Ok((image_index, is_suboptimal)) => (image_index, is_suboptimal),
             Err(result) => match result {
                 vk::Result::ERROR_OUT_OF_DATE_KHR => {
-                    unsafe { self.recreate_swapchain(physical_window_size); }
+                    unsafe {
+                        self.recreate_swapchain(physical_window_size);
+                    }
                     return Ok(());
-                },
-                result => return Err(result)
-            }
+                }
+                result => return Err(result),
+            },
         };
 
         let wait_semaphores = [self.frame_sync_data.image_available_semaphores[current_frame]];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let command_buffers = [
-            self.command_buffers[image_index as usize]
-        ];
+        let command_buffers = [self.command_buffers[image_index as usize]];
         let signal_semaphores = [self.frame_sync_data.render_finished_semaphores[current_frame]];
 
         self.update_uniform_buffer(image_index, init_timestamp);
 
-        let submit_infos = [
-            vk::SubmitInfo::builder()
-                .wait_semaphores(&wait_semaphores)
-                .wait_dst_stage_mask(&wait_stages)
-                .command_buffers(&command_buffers)
-                .signal_semaphores(&signal_semaphores)
-                .build()
-        ];
+        let submit_infos = [vk::SubmitInfo::builder()
+            .wait_semaphores(&wait_semaphores)
+            .wait_dst_stage_mask(&wait_stages)
+            .command_buffers(&command_buffers)
+            .signal_semaphores(&signal_semaphores)
+            .build()];
 
         unsafe {
-            self.device.reset_fences(&fences).expect("Failed to reset fences!");
-            self.device.queue_submit(self.graphics_queue, &submit_infos, self.frame_sync_data.in_flight_fences[current_frame]).expect("Failed to submit draw command buffer!")
+            self.device
+                .reset_fences(&fences)
+                .expect("Failed to reset fences!");
+            self.device
+                .queue_submit(
+                    self.graphics_queue,
+                    &submit_infos,
+                    self.frame_sync_data.in_flight_fences[current_frame],
+                )
+                .expect("Failed to submit draw command buffer!")
         };
 
         let swapchains = [self.swapchain_data.swapchain_khr];
@@ -241,17 +331,23 @@ impl VulkanApp {
             .image_indices(&image_indices)
             .build();
 
-        let queue_present_result = unsafe { self.swapchain_data.swapchain.queue_present(self.present_queue, &present_info) };
+        let queue_present_result = unsafe {
+            self.swapchain_data
+                .swapchain
+                .queue_present(self.present_queue, &present_info)
+        };
         let should_recreate_swapchain = match queue_present_result {
             Ok(is_suboptimal) => is_suboptimal,
             Err(result) => match result {
                 vk::Result::ERROR_OUT_OF_DATE_KHR => true,
-                result => return Err(result)
-            }
+                result => return Err(result),
+            },
         };
         if should_recreate_swapchain || *framebuffer_resized {
             *framebuffer_resized = false;
-            unsafe { self.recreate_swapchain(physical_window_size); }
+            unsafe {
+                self.recreate_swapchain(physical_window_size);
+            }
         }
         Ok(())
     }
@@ -266,13 +362,22 @@ impl VulkanApp {
                 Point3::new(0.0, 0.0, 0.5),
                 Vector3::new(0.0, 0.0, 1.0),
             ),
-            projection: self.build_projection_matrix(45.0, 1.0, 10.0)
+            projection: self.build_projection_matrix(45.0, 1.0, 10.0),
         };
 
         unsafe {
-            let data_ptr = self.device.map_memory(self.uniform_buffers_memory[image_index as usize], 0, size_of::<UBO>() as u64, vk::MemoryMapFlags::empty()).expect("Failed to map uniform buffer memory!");
+            let data_ptr = self
+                .device
+                .map_memory(
+                    self.uniform_buffers_memory[image_index as usize],
+                    0,
+                    size_of::<UBO>() as u64,
+                    vk::MemoryMapFlags::empty(),
+                )
+                .expect("Failed to map uniform buffer memory!");
             copy_nonoverlapping(&ubo, data_ptr as *mut UBO, 1);
-            self.device.unmap_memory(self.uniform_buffers_memory[image_index as usize]);
+            self.device
+                .unmap_memory(self.uniform_buffers_memory[image_index as usize]);
         };
     }
 
@@ -282,8 +387,8 @@ impl VulkanApp {
 
         let scale = 1.0 / (0.5 * fov * std::f32::consts::PI / 180.0).tan();
         let c0r0 = scale / aspect_ratio;
-        let c2r2 = - f_far / (f_far - f_near);
-        let c3r2 = - (f_far * f_near) / (f_far - f_near);
+        let c2r2 = -f_far / (f_far - f_near);
+        let c3r2 = -(f_far * f_near) / (f_far - f_near);
 
         // perspective projection borrowed from:
         // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/building-basic-perspective-projection-matrix
@@ -297,47 +402,105 @@ impl VulkanApp {
     }
 
     fn device_wait_idle(&self) {
-        unsafe { self.device.device_wait_idle().expect("Failed to wait for device to become idle!"); }
+        unsafe {
+            self.device
+                .device_wait_idle()
+                .expect("Failed to wait for device to become idle!");
+        }
     }
 
     unsafe fn recreate_swapchain(&mut self, physical_window_size: &winit::dpi::PhysicalSize<u32>) {
         self.device_wait_idle();
         self.drop_swapchain();
 
-        self.swapchain_data = SwapchainData::new(&self.instance, self.physical_device, &self.device, &self.surface, self.surface_khr, *physical_window_size);
+        self.swapchain_data = SwapchainData::new(
+            &self.instance,
+            self.physical_device,
+            &self.device,
+            &self.surface,
+            self.surface_khr,
+            *physical_window_size,
+        );
         self.render_pass = setup::render_pass::create(&self.device, &self.swapchain_data);
-        let (pipelines, pipeline_layout) = setup::graphics_pipeline::create(&self.device, &self.swapchain_data, self.render_pass, &self.descriptor_set_layout);
+        let (pipelines, pipeline_layout) = setup::graphics_pipeline::create(
+            &self.device,
+            &self.swapchain_data,
+            self.render_pass,
+            &self.descriptor_set_layout,
+        );
         self.pipelines = pipelines;
         self.pipeline_layout = pipeline_layout;
         let graphics_pipeline = self.pipelines.first().expect("Failed to fetch pipeline!");
 
-        self.framebuffers = setup::framebuffers::create(&self.device, &self.swapchain_data, self.render_pass);
+        self.framebuffers =
+            setup::framebuffers::create(&self.device, &self.swapchain_data, self.render_pass);
 
-        let (uniform_buffers, uniform_buffers_memory) = setup::uniform_buffers::create(&self.instance, &self.device, &self.physical_device, &self.swapchain_data.swapchain_images);
+        let (uniform_buffers, uniform_buffers_memory) = setup::uniform_buffers::create(
+            &self.instance,
+            &self.device,
+            &self.physical_device,
+            &self.swapchain_data.swapchain_images,
+        );
         self.uniform_buffers = uniform_buffers;
         self.uniform_buffers_memory = uniform_buffers_memory;
 
-        self.descriptor_pool = setup::uniform_buffers::create_descriptor_pool(&self.device, &self.swapchain_data.swapchain_images);
-        self.descriptor_sets = setup::uniform_buffers::create_descriptor_sets(&self.device, self.descriptor_pool, self.descriptor_set_layout, &self.uniform_buffers, &self.swapchain_data.swapchain_images);
-        
-        self.command_buffers = setup::command_buffers::create(&self.device, self.command_pool, &self.framebuffers, self.render_pass, self.swapchain_data.image_extent, graphics_pipeline, self.pipeline_layout, &self.descriptor_sets, self.vertex_buffer, self.index_buffer, &self.indices);
+        self.descriptor_pool = setup::uniform_buffers::create_descriptor_pool(
+            &self.device,
+            &self.swapchain_data.swapchain_images,
+        );
+        self.descriptor_sets = setup::uniform_buffers::create_descriptor_sets(
+            &self.device,
+            self.descriptor_pool,
+            self.descriptor_set_layout,
+            &self.uniform_buffers,
+            &self.swapchain_data.swapchain_images,
+        );
+
+        self.command_buffers = setup::command_buffers::create(
+            &self.device,
+            self.command_pool,
+            &self.framebuffers,
+            self.render_pass,
+            self.swapchain_data.image_extent,
+            graphics_pipeline,
+            self.pipeline_layout,
+            &self.descriptor_sets,
+            self.vertex_buffer,
+            self.index_buffer,
+            &self.indices,
+        );
     }
 
     unsafe fn drop_swapchain(&self) {
-        self.framebuffers.iter().for_each(|framebuffer| self.device.destroy_framebuffer(*framebuffer, None));
-        self.device.free_command_buffers(self.command_pool, &self.command_buffers);
-        self.pipelines.iter().for_each(|pipeline| self.device.destroy_pipeline(*pipeline, None));
-        self.device.destroy_pipeline_layout(self.pipeline_layout, None);
+        self.framebuffers
+            .iter()
+            .for_each(|framebuffer| self.device.destroy_framebuffer(*framebuffer, None));
+        self.device
+            .free_command_buffers(self.command_pool, &self.command_buffers);
+        self.pipelines
+            .iter()
+            .for_each(|pipeline| self.device.destroy_pipeline(*pipeline, None));
+        self.device
+            .destroy_pipeline_layout(self.pipeline_layout, None);
         self.device.destroy_render_pass(self.render_pass, None);
 
-        self.swapchain_data.swapchain_image_views.iter().for_each(|view| self.device.destroy_image_view(*view, None));
-        self.swapchain_data.swapchain.destroy_swapchain(self.swapchain_data.swapchain_khr, None);
+        self.swapchain_data
+            .swapchain_image_views
+            .iter()
+            .for_each(|view| self.device.destroy_image_view(*view, None));
+        self.swapchain_data
+            .swapchain
+            .destroy_swapchain(self.swapchain_data.swapchain_khr, None);
 
-        self.device.destroy_descriptor_pool(self.descriptor_pool, None);
-        self.uniform_buffers.iter().zip(&self.uniform_buffers_memory).for_each(|(buffer, memory)| {
-            self.device.destroy_buffer(*buffer, None);
-            self.device.free_memory(*memory, None);
-        });
+        self.device
+            .destroy_descriptor_pool(self.descriptor_pool, None);
+        self.uniform_buffers
+            .iter()
+            .zip(&self.uniform_buffers_memory)
+            .for_each(|(buffer, memory)| {
+                self.device.destroy_buffer(*buffer, None);
+                self.device.free_memory(*memory, None);
+            });
     }
 }
 
@@ -346,14 +509,26 @@ impl Drop for VulkanApp {
         unsafe {
             self.drop_swapchain();
 
-            self.device.destroy_descriptor_set_layout(self.descriptor_set_layout, None);
+            self.device.destroy_image(self.texture_image, None);
+            self.device.free_memory(self.texture_image_memory, None);
+            self.device
+                .destroy_descriptor_set_layout(self.descriptor_set_layout, None);
             self.device.destroy_buffer(self.vertex_buffer, None);
             self.device.free_memory(self.vertex_buffer_memory, None);
             self.device.destroy_buffer(self.index_buffer, None);
             self.device.free_memory(self.index_buffer_memory, None);
-            self.frame_sync_data.image_available_semaphores.iter().for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
-            self.frame_sync_data.render_finished_semaphores.iter().for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
-            self.frame_sync_data.in_flight_fences.iter().for_each(|fence| self.device.destroy_fence(*fence, None));
+            self.frame_sync_data
+                .image_available_semaphores
+                .iter()
+                .for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
+            self.frame_sync_data
+                .render_finished_semaphores
+                .iter()
+                .for_each(|semaphore| self.device.destroy_semaphore(*semaphore, None));
+            self.frame_sync_data
+                .in_flight_fences
+                .iter()
+                .for_each(|fence| self.device.destroy_fence(*fence, None));
 
             self.device.destroy_command_pool(self.command_pool, None);
             self.device.destroy_device(None);
@@ -376,21 +551,19 @@ fn main() {
         Vertex::new(-0.5, -0.5, 1.0, 0.0, 0.0),
         Vertex::new(0.5, -0.5, 0.0, 1.0, 0.0),
         Vertex::new(0.5, 0.5, 0.0, 0.0, 1.0),
-        Vertex::new(-0.5, 0.5, 1.0, 1.0, 1.0)
+        Vertex::new(-0.5, 0.5, 1.0, 1.0, 1.0),
     ];
 
     let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
 
     let mut event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_inner_size(LogicalSize::new(
-            WINDOW_WIDTH as f64,
-            WINDOW_HEIGHT as f64,
-        ))
+        .with_inner_size(LogicalSize::new(WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64))
         .with_title("Vulkan tutorial")
         .build(&event_loop)
         .expect("Failed to create window!");
 
     let mut app = VulkanApp::new(&window, vertices, indices, ENABLE_VALIDATION_LAYERS);
-    app.run(&mut event_loop, window).expect("Application crashed!");
+    app.run(&mut event_loop, window)
+        .expect("Application crashed!");
 }
