@@ -2,9 +2,7 @@ use std::{collections::HashSet, os::raw::c_char};
 
 use ash::{extensions::khr::Surface, version::InstanceV1_0, vk, Instance};
 
-use crate::{
-    setup::{devices::utils, extensions, validation_layers::utils as debug_utils},
-};
+use crate::setup::{devices::utils, extensions, validation_layers::utils as debug_utils};
 
 pub fn create(
     instance: &Instance,
@@ -37,7 +35,9 @@ pub fn create(
         })
         .collect::<Vec<vk::DeviceQueueCreateInfo>>();
 
-    let device_features = vk::PhysicalDeviceFeatures::builder().build();
+    let device_features = vk::PhysicalDeviceFeatures::builder()
+        .sampler_anisotropy(true)
+        .build();
 
     // variables below in main function body to prevent getting destroyed before entry.create_instance()
     let enabled_layer_names = debug_utils::get_enabled_layer_names();

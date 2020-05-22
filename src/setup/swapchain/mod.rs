@@ -1,12 +1,12 @@
 use ash::{
     extensions::khr::{Surface, Swapchain},
-    version::DeviceV1_0,
     vk, Device, Instance,
 };
 use winit::dpi::PhysicalSize;
 
 pub mod utils;
 use crate::setup::devices::utils as device_utils;
+use crate::setup::image;
 
 pub struct SwapchainData {
     pub swapchain: Swapchain,
@@ -23,7 +23,7 @@ impl SwapchainData {
         device: &Device,
         surface: &Surface,
         surface_khr: vk::SurfaceKHR,
-        physical_window_size: PhysicalSize<u32>
+        physical_window_size: PhysicalSize<u32>,
     ) -> Self {
         let utils::SwapchainDetails {
             capabilities,
@@ -55,7 +55,7 @@ impl SwapchainData {
                 surface,
                 surface_khr,
             )
-                .expect("No queue families contain required flags!");
+            .expect("No queue families contain required flags!");
 
         // enable swapchain sharing and pass relevant indices to struct iff both queue indices are the different.
         let (image_sharing_mode, queue_family_indices) = match graphics == present {
@@ -96,7 +96,10 @@ impl SwapchainData {
                 .get_swapchain_images(swapchain_khr)
                 .expect("Failed to get swapchain images!")
         };
-        let swapchain_image_views = create_image_views(device, &swapchain_images, image_format);
+        let swapchain_image_views = swapchain_images.iter().fold(vec![], |mut acc, image| {
+            acc.push(image::create_image_view(device, *image, image_format));
+            acc
+        });
 
         SwapchainData {
             swapchain,
@@ -107,37 +110,4 @@ impl SwapchainData {
             image_extent,
         }
     }
-}
-
-fn create_image_views(
-    device: &Device,
-    swapchain_images: &[vk::Image],
-    format: vk::Format,
-) -> Vec<vk::ImageView> {
-    let subresource_range = vk::ImageSubresourceRange::builder()
-        .aspect_mask(vk::ImageAspectFlags::COLOR)
-        .base_mip_level(0)
-        .level_count(1)
-        .base_array_layer(0)
-        .layer_count(1)
-        .build();
-
-    let image_views = swapchain_images.iter().fold(vec![], |mut acc, image| {
-        let image_view_create_info = vk::ImageViewCreateInfo::builder()
-            .image(*image)
-            .view_type(vk::ImageViewType::TYPE_2D)
-            .format(format)
-            .components(vk::ComponentMapping::default())
-            .subresource_range(subresource_range)
-            .build();
-
-        let image_view = unsafe {
-            device
-                .create_image_view(&image_view_create_info, None)
-                .expect("Failed to create image views!")
-        };
-        acc.push(image_view);
-        acc
-    });
-    image_views
 }

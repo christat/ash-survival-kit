@@ -22,7 +22,13 @@ pub fn is_physical_device_suitable(
         false
     };
 
-    supports_required_queue_families && supports_required_extensions && swap_chain_is_adequate
+    let supported_features = unsafe { instance.get_physical_device_features(device) };
+    let supports_anisotropy = supported_features.sampler_anisotropy > 0;
+
+    supports_required_queue_families
+        && supports_required_extensions
+        && swap_chain_is_adequate
+        && supports_anisotropy
 }
 
 pub fn check_device_extension_support(instance: &Instance, device: vk::PhysicalDevice) -> bool {
@@ -99,11 +105,9 @@ pub fn get_physical_device_queue_family_indices(
             }
 
             let supports_surface = unsafe {
-                surface.get_physical_device_surface_support(
-                    physical_device,
-                    queue_index,
-                    surface_khr,
-                ).expect("Failed to get physical device surface support!")
+                surface
+                    .get_physical_device_surface_support(physical_device, queue_index, surface_khr)
+                    .expect("Failed to get physical device surface support!")
             };
             if indices.present.is_none() && supports_surface {
                 indices.present = Some(queue_index);

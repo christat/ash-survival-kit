@@ -153,6 +153,36 @@ fn create_image(
     (image, texture_image_memory)
 }
 
+pub fn create_texture_image_view(device: &Device, image: vk::Image) -> vk::ImageView {
+    create_image_view(device, image, vk::Format::R8G8B8A8_SRGB)
+}
+
+pub fn create_texture_sampler(device: &Device) -> vk::Sampler {
+    let create_info = vk::SamplerCreateInfo::builder()
+        .mag_filter(vk::Filter::LINEAR)
+        .min_filter(vk::Filter::LINEAR)
+        .address_mode_u(vk::SamplerAddressMode::REPEAT)
+        .address_mode_v(vk::SamplerAddressMode::REPEAT)
+        .address_mode_w(vk::SamplerAddressMode::REPEAT)
+        .anisotropy_enable(true)
+        .max_anisotropy(16.0)
+        .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
+        .unnormalized_coordinates(false)
+        .compare_enable(false)
+        .compare_op(vk::CompareOp::ALWAYS)
+        .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+        .mip_lod_bias(0.0)
+        .min_lod(0.0)
+        .max_lod(0.0)
+        .build();
+
+    unsafe {
+        device
+            .create_sampler(&create_info, None)
+            .expect("Failed to create texture sampler!")
+    }
+}
+
 struct LayoutTransitionMasks {
     pub src_access_mask: vk::AccessFlags,
     pub dst_access_mask: vk::AccessFlags,
@@ -269,4 +299,27 @@ pub fn copy_buffer_to_image(
     }
 
     buffer::end_single_time_commands(device, command_pool, command_buffer, queue);
+}
+
+pub fn create_image_view(device: &Device, image: vk::Image, format: vk::Format) -> vk::ImageView {
+    let create_info = vk::ImageViewCreateInfo::builder()
+        .image(image)
+        .view_type(vk::ImageViewType::TYPE_2D)
+        .format(format)
+        .subresource_range(
+            vk::ImageSubresourceRange::builder()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .base_mip_level(0)
+                .level_count(1)
+                .base_array_layer(0)
+                .layer_count(1)
+                .build(),
+        )
+        .build();
+
+    unsafe {
+        device
+            .create_image_view(&create_info, None)
+            .expect("Failed to create image view!")
+    }
 }

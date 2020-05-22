@@ -13,22 +13,18 @@ pub fn select(
             .expect("Failed to enumerate physical devices")
     };
 
-    if physical_devices.len() == 0 {
+    if physical_devices.is_empty() {
         panic!("No physical devices with Vulkan support!");
     }
 
     let suitable_devices = physical_devices
         .into_iter()
-        .filter_map(|device| {
-            if utils::is_physical_device_suitable(instance, device, surface, surface_khr) {
-                Some(device)
-            } else {
-                None
-            }
+        .filter(|device| {
+            utils::is_physical_device_suitable(instance, *device, surface, surface_khr)
         })
         .collect::<Vec<vk::PhysicalDevice>>();
 
-    if suitable_devices.len() == 0 {
+    if suitable_devices.is_empty() {
         panic!("No suitable devices found!")
     }
 

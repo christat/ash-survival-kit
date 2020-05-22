@@ -77,6 +77,8 @@ struct VulkanApp {
     present_queue: vk::Queue,
 
     texture_image: vk::Image,
+    texture_image_view: vk::ImageView,
+    texture_sampler: vk::Sampler,
     texture_image_memory: vk::DeviceMemory,
 }
 
@@ -126,13 +128,15 @@ impl VulkanApp {
         let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
 
-        let (texture_image, texture_image_memory) = setup::texture_image::create(
+        let (texture_image, texture_image_memory) = setup::image::create(
             &instance,
             &device,
             &physical_device,
             command_pool,
             graphics_queue,
         );
+        let texture_image_view = setup::image::create_texture_image_view(&device, texture_image);
+        let texture_sampler = setup::image::create_texture_sampler(&device);
         let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(
             &instance,
             &physical_device,
@@ -214,6 +218,8 @@ impl VulkanApp {
             graphics_queue,
             present_queue,
             texture_image,
+            texture_image_view,
+            texture_sampler,
             texture_image_memory,
         }
     }
@@ -509,6 +515,9 @@ impl Drop for VulkanApp {
         unsafe {
             self.drop_swapchain();
 
+            self.device.destroy_sampler(self.texture_sampler, None);
+            self.device
+                .destroy_image_view(self.texture_image_view, None);
             self.device.destroy_image(self.texture_image, None);
             self.device.free_memory(self.texture_image_memory, None);
             self.device
