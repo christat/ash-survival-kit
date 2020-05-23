@@ -1,23 +1,19 @@
-use std::{
-    ffi::CString,
-    path::Path,
-    fs::File,
-    io::Read,
-};
+use std::{ffi::CString, fs::File, io::Read, path::Path};
 
 extern crate byteorder;
 use byteorder::{ByteOrder, LittleEndian};
 
-use ash::{
-    Device,
-    vk,
-    version::DeviceV1_0
-};
+use ash::{version::DeviceV1_0, vk, Device};
 
 use crate::setup::swapchain::SwapchainData;
 use crate::structs::Vertex;
 
-pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::RenderPass, descriptor_set_layout: &vk::DescriptorSetLayout) -> (Vec<vk::Pipeline>, vk::PipelineLayout) {
+pub fn create(
+    device: &Device,
+    swapchain_data: &SwapchainData,
+    render_pass: vk::RenderPass,
+    descriptor_set_layout: &vk::DescriptorSetLayout,
+) -> (Vec<vk::Pipeline>, vk::PipelineLayout) {
     let vert_shader_raw = read_shader(Path::new("src/shaders/vert.spv"));
     let frag_shader_raw = read_shader(Path::new("src/shaders/frag.spv"));
 
@@ -46,10 +42,11 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .vertex_binding_descriptions(&Vertex::get_binding_description())
         .build();
 
-    let pipeline_input_assembly_state_create_info = vk::PipelineInputAssemblyStateCreateInfo::builder()
-        .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
-        .primitive_restart_enable(false)
-        .build();
+    let pipeline_input_assembly_state_create_info =
+        vk::PipelineInputAssemblyStateCreateInfo::builder()
+            .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+            .primitive_restart_enable(false)
+            .build();
 
     let viewports = [vk::Viewport::builder()
         .x(0.0)
@@ -94,7 +91,12 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .build();
 
     let color_blend_attachments = [vk::PipelineColorBlendAttachmentState::builder()
-        .color_write_mask(vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B | vk::ColorComponentFlags::A)
+        .color_write_mask(
+            vk::ColorComponentFlags::R
+                | vk::ColorComponentFlags::G
+                | vk::ColorComponentFlags::B
+                | vk::ColorComponentFlags::A,
+        )
         .blend_enable(true)
         .src_color_blend_factor(vk::BlendFactor::SRC_ALPHA)
         .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
@@ -126,7 +128,23 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .set_layouts(&[*descriptor_set_layout])
         .build();
 
-    let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_create_info, None).expect("Failed to create pipeline layout!") };
+    let pipeline_layout = unsafe {
+        device
+            .create_pipeline_layout(&pipeline_layout_create_info, None)
+            .expect("Failed to create pipeline layout!")
+    };
+
+    let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfo::builder()
+        .depth_test_enable(true)
+        .depth_write_enable(true)
+        .depth_compare_op(vk::CompareOp::LESS)
+        .depth_bounds_test_enable(false)
+        // .min_depth_bounds(0.0)
+        // .max_depth_bounds(1.0)
+        .stencil_test_enable(false)
+        //.front(vk::StencilOpState::builder().build())
+        //.back(vk::StencilOpState::builder().build())
+        .build();
 
     let pipeline_create_infos = [vk::GraphicsPipelineCreateInfo::builder()
         .stages(&shader_stages)
@@ -136,6 +154,7 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         .rasterization_state(&rasterizer)
         .multisample_state(&multisampling)
         .color_blend_state(&color_blending)
+        .depth_stencil_state(&depth_stencil_state)
         .layout(pipeline_layout)
         .render_pass(render_pass)
         .subpass(0)
@@ -144,7 +163,11 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
         //.dynamic_state(&pipeline_dynamic_state_create_info)
         .build()];
 
-    let pipelines = unsafe { device.create_graphics_pipelines(vk::PipelineCache::default(), &pipeline_create_infos, None).expect("Failed to create graphics pipeline!") };
+    let pipelines = unsafe {
+        device
+            .create_graphics_pipelines(vk::PipelineCache::default(), &pipeline_create_infos, None)
+            .expect("Failed to create graphics pipeline!")
+    };
 
     // modules are safe to destroy right after creating pipelines
     unsafe {
@@ -156,12 +179,18 @@ pub fn create(device: &Device, swapchain_data: &SwapchainData, render_pass: vk::
 }
 
 fn read_shader(file_path: &Path) -> Vec<u32> {
-    let shader_file = File::open(file_path).expect(&format!("Failed to read shader: {}", file_path.display()));
-    let shader_bytes = shader_file.bytes().filter_map(|byte| byte.ok()).collect::<Vec<u8>>();
-    let shader_raw: Vec<u32> = (0..shader_bytes.len()).step_by(4).fold(vec![], |mut acc, i| {
-        acc.push(LittleEndian::read_u32(&shader_bytes[i..]));
-        acc
-    });
+    let shader_file =
+        File::open(file_path).expect(&format!("Failed to read shader: {}", file_path.display()));
+    let shader_bytes = shader_file
+        .bytes()
+        .filter_map(|byte| byte.ok())
+        .collect::<Vec<u8>>();
+    let shader_raw: Vec<u32> = (0..shader_bytes.len())
+        .step_by(4)
+        .fold(vec![], |mut acc, i| {
+            acc.push(LittleEndian::read_u32(&shader_bytes[i..]));
+            acc
+        });
     shader_raw
 }
 
@@ -170,6 +199,10 @@ fn create_shader_module(device: &Device, shader_raw: Vec<u32>) -> vk::ShaderModu
         .code(&shader_raw)
         .build();
 
-    let shader_module = unsafe { device.create_shader_module(&shader_module_create_info, None).expect("Failed to create shader module!") };
+    let shader_module = unsafe {
+        device
+            .create_shader_module(&shader_module_create_info, None)
+            .expect("Failed to create shader module!")
+    };
     shader_module
 }

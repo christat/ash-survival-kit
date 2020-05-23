@@ -6,15 +6,15 @@ use cgmath::{Matrix4, Vector2, Vector3};
 use field_offset::offset_of;
 
 pub struct Vertex {
-    position: Vector2<f32>,
+    position: Vector3<f32>,
     color: Vector3<f32>,
     uv: Vector2<f32>,
 }
 
 impl Vertex {
-    pub fn new(x: f32, y: f32, r: f32, g: f32, b: f32, u: f32, v: f32) -> Self {
+    pub fn new(x: f32, y: f32, z: f32, r: f32, g: f32, b: f32, u: f32, v: f32) -> Self {
         Self {
-            position: Vector2 { x, y },
+            position: Vector3 { x, y, z },
             color: Vector3 { x: r, y: g, z: b },
             uv: Vector2 { x: u, y: v },
         }
@@ -34,7 +34,7 @@ impl Vertex {
             vk::VertexInputAttributeDescription::builder()
                 .binding(0)
                 .location(0)
-                .format(vk::Format::R32G32_SFLOAT)
+                .format(vk::Format::R32G32B32_SFLOAT)
                 .offset(offset_of!(Vertex => position).get_byte_offset() as u32)
                 .build(),
             vk::VertexInputAttributeDescription::builder()

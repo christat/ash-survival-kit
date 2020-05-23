@@ -80,6 +80,10 @@ struct VulkanApp {
     texture_image_view: vk::ImageView,
     texture_sampler: vk::Sampler,
     texture_image_memory: vk::DeviceMemory,
+
+    depth_image: vk::Image,
+    depth_image_view: vk::ImageView,
+    depth_image_memory: vk::DeviceMemory,
 }
 
 impl VulkanApp {
@@ -112,7 +116,8 @@ impl VulkanApp {
             surface_khr,
             physical_window_size,
         );
-        let render_pass = setup::render_pass::create(&device, &swapchain_data);
+        let render_pass =
+            setup::render_pass::create(&instance, &device, &physical_device, &swapchain_data);
         let command_pool = setup::command_pool::create(&device, &queue_family_indices);
 
         let descriptor_set_layout = setup::uniform_buffers::create_descriptor_set_layout(&device);
@@ -123,10 +128,20 @@ impl VulkanApp {
             &descriptor_set_layout,
         );
         let graphics_pipeline = pipelines.first().expect("Failed to fetch pipeline!");
-        let framebuffers = setup::framebuffers::create(&device, &swapchain_data, render_pass);
 
         let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
+
+        let (depth_image, depth_image_view, depth_image_memory) =
+            setup::image::create_depth_resources(
+                &instance,
+                &device,
+                &physical_device,
+                swapchain_data.image_extent,
+            );
+
+        let framebuffers =
+            setup::framebuffers::create(&device, &swapchain_data, render_pass, &depth_image_view);
 
         let (texture_image, texture_image_memory) = setup::image::create(
             &instance,
@@ -223,6 +238,9 @@ impl VulkanApp {
             texture_image_view,
             texture_sampler,
             texture_image_memory,
+            depth_image,
+            depth_image_view,
+            depth_image_memory,
         }
     }
 
@@ -367,7 +385,7 @@ impl VulkanApp {
             model: Matrix4::from_angle_z(Deg(90.0 * elapsed_seconds)),
             view: Matrix4::look_at(
                 Point3::new(2.0, 2.0, 1.0),
-                Point3::new(0.0, 0.0, 0.5),
+                Point3::new(0.0, 0.0, 0.0),
                 Vector3::new(0.0, 0.0, 1.0),
             ),
             projection: self.build_projection_matrix(45.0, 1.0, 10.0),
@@ -429,7 +447,12 @@ impl VulkanApp {
             self.surface_khr,
             *physical_window_size,
         );
-        self.render_pass = setup::render_pass::create(&self.device, &self.swapchain_data);
+        self.render_pass = setup::render_pass::create(
+            &self.instance,
+            &self.device,
+            &self.physical_device,
+            &self.swapchain_data,
+        );
         let (pipelines, pipeline_layout) = setup::graphics_pipeline::create(
             &self.device,
             &self.swapchain_data,
@@ -440,8 +463,23 @@ impl VulkanApp {
         self.pipeline_layout = pipeline_layout;
         let graphics_pipeline = self.pipelines.first().expect("Failed to fetch pipeline!");
 
-        self.framebuffers =
-            setup::framebuffers::create(&self.device, &self.swapchain_data, self.render_pass);
+        let (depth_image, depth_image_view, depth_image_memory) =
+            setup::image::create_depth_resources(
+                &self.instance,
+                &self.device,
+                &self.physical_device,
+                self.swapchain_data.image_extent,
+            );
+        self.depth_image = depth_image;
+        self.depth_image_view = depth_image_view;
+        self.depth_image_memory = depth_image_memory;
+
+        self.framebuffers = setup::framebuffers::create(
+            &self.device,
+            &self.swapchain_data,
+            self.render_pass,
+            &self.depth_image_view,
+        );
 
         let (uniform_buffers, uniform_buffers_memory) = setup::uniform_buffers::create(
             &self.instance,
@@ -482,6 +520,9 @@ impl VulkanApp {
     }
 
     unsafe fn drop_swapchain(&self) {
+        self.device.destroy_image_view(self.depth_image_view, None);
+        self.device.destroy_image(self.depth_image, None);
+        self.device.free_memory(self.depth_image_memory, None);
         self.framebuffers
             .iter()
             .for_each(|framebuffer| self.device.destroy_framebuffer(*framebuffer, None));
@@ -561,13 +602,22 @@ impl Drop for VulkanApp {
 
 fn main() {
     let vertices: Vec<Vertex> = vec![
-        Vertex::new(-0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0),
-        Vertex::new(0.5, -0.5, 0.0, 1.0, 0.0, 1.0, 0.0),
-        Vertex::new(0.5, 0.5, 0.0, 0.0, 1.0, 1.0, 1.0),
-        Vertex::new(-0.5, 0.5, 1.0, 1.0, 1.0, 0.0, 1.0),
+        // quad 0
+        Vertex::new(-0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0),
+        Vertex::new(0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0),
+        Vertex::new(0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0),
+        Vertex::new(-0.5, 0.5, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0),
+        // quad 1
+        Vertex::new(-0.5, -0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0),
+        Vertex::new(0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 1.0, 0.0),
+        Vertex::new(0.5, 0.5, -0.5, 0.0, 0.0, 1.0, 1.0, 1.0),
+        Vertex::new(-0.5, 0.5, -0.5, 1.0, 1.0, 1.0, 0.0, 1.0),
     ];
 
-    let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
+    let indices: Vec<u16> = vec![
+        0, 1, 2, 2, 3, 0, // quad 0
+        4, 5, 6, 6, 7, 4, // quad 1
+    ];
 
     let mut event_loop = EventLoop::new();
     let window = WindowBuilder::new()

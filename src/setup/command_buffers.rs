@@ -42,12 +42,22 @@ pub fn create(
                 .extent(swapchain_extent)
                 .build();
 
-            let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 1.0],
+            let clear_values = [
+                vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [0.0, 0.0, 0.0, 1.0],
+                    },
                 },
-            }];
+                vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue::builder()
+                        .depth(1.0)
+                        .stencil(0)
+                        .build(),
+                },
+            ];
 
+            let mut clear_color_value = vk::ClearColorValue::default();
+            clear_color_value.float32 = [0.0, 0.0, 0.0, 1.0];
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
                 .render_pass(render_pass)
                 .framebuffer(*framebuffer)

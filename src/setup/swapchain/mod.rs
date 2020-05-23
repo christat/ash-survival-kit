@@ -97,7 +97,12 @@ impl SwapchainData {
                 .expect("Failed to get swapchain images!")
         };
         let swapchain_image_views = swapchain_images.iter().fold(vec![], |mut acc, image| {
-            acc.push(image::create_image_view(device, *image, image_format));
+            acc.push(image::create_image_view(
+                device,
+                *image,
+                image_format,
+                vk::ImageAspectFlags::COLOR,
+            ));
             acc
         });
 

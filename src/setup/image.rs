@@ -4,6 +4,7 @@ use ash::{version::DeviceV1_0, vk, Device, Instance};
 use image::GenericImageView;
 
 use crate::setup::buffer;
+use ash::version::InstanceV1_0;
 
 pub fn create(
     instance: &Instance,
@@ -154,7 +155,12 @@ fn create_image(
 }
 
 pub fn create_texture_image_view(device: &Device, image: vk::Image) -> vk::ImageView {
-    create_image_view(device, image, vk::Format::R8G8B8A8_SRGB)
+    create_image_view(
+        device,
+        image,
+        vk::Format::R8G8B8A8_SRGB,
+        vk::ImageAspectFlags::COLOR,
+    )
 }
 
 pub fn create_texture_sampler(device: &Device) -> vk::Sampler {
@@ -301,14 +307,19 @@ pub fn copy_buffer_to_image(
     buffer::end_single_time_commands(device, command_pool, command_buffer, queue);
 }
 
-pub fn create_image_view(device: &Device, image: vk::Image, format: vk::Format) -> vk::ImageView {
+pub fn create_image_view(
+    device: &Device,
+    image: vk::Image,
+    format: vk::Format,
+    aspect_flages: vk::ImageAspectFlags,
+) -> vk::ImageView {
     let create_info = vk::ImageViewCreateInfo::builder()
         .image(image)
         .view_type(vk::ImageViewType::TYPE_2D)
         .format(format)
         .subresource_range(
             vk::ImageSubresourceRange::builder()
-                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .aspect_mask(aspect_flages)
                 .base_mip_level(0)
                 .level_count(1)
                 .base_array_layer(0)
@@ -321,5 +332,77 @@ pub fn create_image_view(device: &Device, image: vk::Image, format: vk::Format) 
         device
             .create_image_view(&create_info, None)
             .expect("Failed to create image view!")
+    }
+}
+
+pub fn create_depth_resources(
+    instance: &Instance,
+    device: &Device,
+    physical_device: &vk::PhysicalDevice,
+    swapchain_extent: vk::Extent2D,
+) -> (vk::Image, vk::ImageView, vk::DeviceMemory) {
+    let depth_format = find_depth_format(instance, physical_device);
+    let (depth_image, depth_image_memory) = create_image(
+        instance,
+        device,
+        physical_device,
+        swapchain_extent.width,
+        swapchain_extent.height,
+        depth_format,
+        vk::ImageTiling::OPTIMAL,
+        vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+        vk::MemoryPropertyFlags::DEVICE_LOCAL,
+    );
+    let depth_image_view = create_image_view(
+        device,
+        depth_image,
+        depth_format,
+        vk::ImageAspectFlags::DEPTH,
+    );
+    (depth_image, depth_image_view, depth_image_memory)
+}
+
+pub fn find_depth_format(instance: &Instance, physical_device: &vk::PhysicalDevice) -> vk::Format {
+    find_supported_format(
+        instance,
+        physical_device,
+        &vec![
+            vk::Format::D32_SFLOAT,
+            vk::Format::D32_SFLOAT_S8_UINT,
+            vk::Format::D24_UNORM_S8_UINT,
+        ],
+        vk::ImageTiling::OPTIMAL,
+        vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+    )
+}
+
+pub fn find_supported_format(
+    instance: &Instance,
+    physical_device: &vk::PhysicalDevice,
+    candidates: &[vk::Format],
+    tiling: vk::ImageTiling,
+    features: vk::FormatFeatureFlags,
+) -> vk::Format {
+    for format in candidates.iter() {
+        let format_properties =
+            unsafe { instance.get_physical_device_format_properties(*physical_device, *format) };
+
+        if tiling == vk::ImageTiling::LINEAR
+            && (format_properties.linear_tiling_features & features) == features
+        {
+            return *format;
+        } else if tiling == vk::ImageTiling::OPTIMAL
+            && (format_properties.optimal_tiling_features & features) == features
+        {
+            return *format;
+        }
+    }
+    panic!("Failed to find supported format!");
+}
+
+pub fn has_stencil_component(format: vk::Format) -> bool {
+    match format {
+        vk::Format::D32_SFLOAT_S8_UINT | vk::Format::D24_UNORM_S8_UINT => true,
+        _ => false,
     }
 }
