@@ -13,7 +13,8 @@ pub fn create(
     command_pool: vk::CommandPool,
     queue: vk::Queue,
 ) -> (vk::Image, vk::DeviceMemory) {
-    let src = image::open("src/resources/img/statue.png").expect("Failed to load image from path!");
+    let src = image::open("src/resources/textures/viking_room.png")
+        .expect("Failed to load image from path!");
     let (width, height) = src.dimensions();
     let image_size = (std::mem::size_of::<u8>() as u32 * width * height * 4) as vk::DeviceSize;
     let src_bytes = src.to_bytes();
@@ -366,7 +367,7 @@ pub fn find_depth_format(instance: &Instance, physical_device: &vk::PhysicalDevi
     find_supported_format(
         instance,
         physical_device,
-        &vec![
+        &[
             vk::Format::D32_SFLOAT,
             vk::Format::D32_SFLOAT_S8_UINT,
             vk::Format::D24_UNORM_S8_UINT,
@@ -387,13 +388,13 @@ pub fn find_supported_format(
         let format_properties =
             unsafe { instance.get_physical_device_format_properties(*physical_device, *format) };
 
-        if tiling == vk::ImageTiling::LINEAR
-            && (format_properties.linear_tiling_features & features) == features
-        {
-            return *format;
-        } else if tiling == vk::ImageTiling::OPTIMAL
-            && (format_properties.optimal_tiling_features & features) == features
-        {
+        let linear_supported = tiling == vk::ImageTiling::LINEAR
+            && (format_properties.linear_tiling_features & features) == features;
+
+        let optimal_supported = tiling == vk::ImageTiling::OPTIMAL
+            && (format_properties.optimal_tiling_features & features) == features;
+
+        if linear_supported || optimal_supported {
             return *format;
         }
     }

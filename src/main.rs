@@ -2,7 +2,10 @@ use std::{error::Error, mem::size_of, ptr::copy_nonoverlapping, time::Instant};
 
 extern crate ash;
 use ash::{
-    extensions::{ext::DebugUtils, khr::Surface},
+    extensions::{
+        ext::DebugUtils,
+        khr::{Surface, Win32Surface},
+    },
     version::{DeviceV1_0, InstanceV1_0},
     vk, Device, Entry, Instance,
 };
@@ -12,10 +15,11 @@ use cgmath::{Deg, Matrix4, Point3, Vector3};
 
 extern crate field_offset;
 
+extern crate winapi;
 extern crate winit;
 use winit::{
     dpi::LogicalSize,
-    event::{Event, WindowEvent},
+    event::{DeviceEvent, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::desktop::EventLoopExtDesktop,
     window::{Window, WindowBuilder},
@@ -58,10 +62,11 @@ struct VulkanApp {
 
     vertex_buffer: vk::Buffer,
     vertex_buffer_memory: vk::DeviceMemory,
+    vertices: Vec<Vertex>,
 
     index_buffer: vk::Buffer,
     index_buffer_memory: vk::DeviceMemory,
-    indices: Vec<u16>,
+    indices: Vec<u32>,
 
     uniform_buffers: Vec<vk::Buffer>,
     uniform_buffers_memory: Vec<vk::DeviceMemory>,
@@ -87,12 +92,7 @@ struct VulkanApp {
 }
 
 impl VulkanApp {
-    pub fn new(
-        window: &Window,
-        vertices: Vec<Vertex>,
-        indices: Vec<u16>,
-        enable_validation_layers: bool,
-    ) -> Self {
+    pub fn new(window: &Window, enable_validation_layers: bool) -> Self {
         let (entry, instance) = setup::instance::create(enable_validation_layers);
         let (debug_utils, debug_utils_messenger_ext) =
             setup::validation_layers::initialize(&entry, &instance, enable_validation_layers);
@@ -128,7 +128,6 @@ impl VulkanApp {
             &descriptor_set_layout,
         );
         let graphics_pipeline = pipelines.first().expect("Failed to fetch pipeline!");
-
         let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
 
@@ -152,6 +151,7 @@ impl VulkanApp {
         );
         let texture_image_view = setup::image::create_texture_image_view(&device, texture_image);
         let texture_sampler = setup::image::create_texture_sampler(&device);
+        let (vertices, indices) = setup::model::load();
         let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(
             &instance,
             &physical_device,
@@ -224,7 +224,6 @@ impl VulkanApp {
             vertex_buffer_memory,
             index_buffer,
             index_buffer_memory,
-            indices,
             uniform_buffers,
             uniform_buffers_memory,
             descriptor_pool,
@@ -234,6 +233,8 @@ impl VulkanApp {
             frame_sync_data,
             graphics_queue,
             present_queue,
+            vertices,
+            indices,
             texture_image,
             texture_image_view,
             texture_sampler,
@@ -382,7 +383,7 @@ impl VulkanApp {
         let elapsed_seconds = init_timestamp.elapsed().as_secs_f32();
 
         let ubo = UBO {
-            model: Matrix4::from_angle_z(Deg(90.0 * elapsed_seconds)),
+            model: Matrix4::from_angle_z(Deg(30.0 * elapsed_seconds)),
             view: Matrix4::look_at(
                 Point3::new(2.0, 2.0, 1.0),
                 Point3::new(0.0, 0.0, 0.0),
@@ -614,7 +615,7 @@ fn main() {
         Vertex::new(-0.5, 0.5, -0.5, 1.0, 1.0, 1.0, 0.0, 1.0),
     ];
 
-    let indices: Vec<u16> = vec![
+    let indices: Vec<u32> = vec![
         0, 1, 2, 2, 3, 0, // quad 0
         4, 5, 6, 6, 7, 4, // quad 1
     ];
@@ -626,7 +627,7 @@ fn main() {
         .build(&event_loop)
         .expect("Failed to create window!");
 
-    let mut app = VulkanApp::new(&window, vertices, indices, ENABLE_VALIDATION_LAYERS);
+    let mut app = VulkanApp::new(&window, ENABLE_VALIDATION_LAYERS);
     app.run(&mut event_loop, window)
         .expect("Application crashed!");
 }

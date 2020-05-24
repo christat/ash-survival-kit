@@ -9,6 +9,7 @@ pub mod graphics_pipeline;
 pub mod image;
 pub mod index_buffer;
 pub mod instance;
+pub mod model;
 pub mod platform;
 pub mod render_pass;
 pub mod swapchain;

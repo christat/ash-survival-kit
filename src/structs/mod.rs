@@ -5,10 +5,12 @@ use cgmath::{Matrix4, Vector2, Vector3};
 
 use field_offset::offset_of;
 
+#[repr(C)]
+#[derive(Clone, Debug, Copy)]
 pub struct Vertex {
-    position: Vector3<f32>,
-    color: Vector3<f32>,
-    uv: Vector2<f32>,
+    pub position: Vector3<f32>,
+    pub color: Vector3<f32>,
+    pub uv: Vector2<f32>,
 }
 
 impl Vertex {
@@ -20,17 +22,16 @@ impl Vertex {
         }
     }
 
-    pub fn get_binding_description() -> [vk::VertexInputBindingDescription; 1] {
-        let binding_description = [vk::VertexInputBindingDescription::builder()
+    pub fn get_binding_description() -> Vec<vk::VertexInputBindingDescription> {
+        vec![vk::VertexInputBindingDescription::builder()
             .binding(0)
-            .stride(size_of::<Vertex>() as u32)
+            .stride(size_of::<Self>() as u32)
             .input_rate(vk::VertexInputRate::VERTEX)
-            .build()];
-        binding_description
+            .build()]
     }
 
-    pub fn get_attribute_descriptions() -> [vk::VertexInputAttributeDescription; 3] {
-        let attribute_descriptions = [
+    pub fn get_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        vec![
             vk::VertexInputAttributeDescription::builder()
                 .binding(0)
                 .location(0)
@@ -49,8 +50,7 @@ impl Vertex {
                 .format(vk::Format::R32G32_SFLOAT)
                 .offset(offset_of!(Vertex => uv).get_byte_offset() as u32)
                 .build(),
-        ];
-        attribute_descriptions
+        ]
     }
 }
 

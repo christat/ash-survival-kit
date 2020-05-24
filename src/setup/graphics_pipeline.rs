@@ -37,9 +37,11 @@ pub fn create(
 
     let shader_stages = vec![vert_shader_stage_info, frag_shader_stage_info];
 
+    let vertex_binding_descriptions = Vertex::get_binding_description();
+    let vertex_attribute_descriptions = Vertex::get_attribute_descriptions();
     let pipeline_vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder()
-        .vertex_attribute_descriptions(&Vertex::get_attribute_descriptions())
-        .vertex_binding_descriptions(&Vertex::get_binding_description())
+        .vertex_binding_descriptions(&vertex_binding_descriptions)
+        .vertex_attribute_descriptions(&vertex_attribute_descriptions)
         .build();
 
     let pipeline_input_assembly_state_create_info =
@@ -146,7 +148,7 @@ pub fn create(
         //.back(vk::StencilOpState::builder().build())
         .build();
 
-    let pipeline_create_infos = [vk::GraphicsPipelineCreateInfo::builder()
+    let mut pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
         .stages(&shader_stages)
         .vertex_input_state(&pipeline_vertex_input_state_create_info)
         .input_assembly_state(&pipeline_input_assembly_state_create_info)
@@ -161,11 +163,11 @@ pub fn create(
         .base_pipeline_handle(vk::Pipeline::default())
         .base_pipeline_index(-1)
         //.dynamic_state(&pipeline_dynamic_state_create_info)
-        .build()];
+        .build();
 
     let pipelines = unsafe {
         device
-            .create_graphics_pipelines(vk::PipelineCache::default(), &pipeline_create_infos, None)
+            .create_graphics_pipelines(vk::PipelineCache::default(), &[pipeline_create_info], None)
             .expect("Failed to create graphics pipeline!")
     };
 

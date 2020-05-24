@@ -11,7 +11,7 @@ pub fn create(
     descriptor_sets: &[vk::DescriptorSet],
     vertex_buffer: vk::Buffer,
     index_buffer: vk::Buffer,
-    indices: &[u16],
+    indices: &[u32],
 ) -> Vec<vk::CommandBuffer> {
     let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(command_pool)
@@ -81,7 +81,7 @@ pub fn create(
                     command_buffer,
                     index_buffer,
                     0,
-                    vk::IndexType::UINT16,
+                    vk::IndexType::UINT32,
                 );
                 device.cmd_bind_descriptor_sets(
                     command_buffer,

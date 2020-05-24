@@ -48,6 +48,7 @@ dependencies = [
  "cgmath 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "field-offset 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.23.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tobj 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "winit 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -997,6 +998,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "tobj"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "toml"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1301,6 +1307,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum stb_truetype 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f77b6b07e862c66a9f3e62a07588fee67cd90a9135a2b942409f195507b4fb51"
 "checksum syn 1.0.23 (registry+https://github.com/rust-lang/crates.io-index)" = "95b5f192649e48a5302a13f2feb224df883b98933222369e4b3b0fe2a5447269"
 "checksum tiff 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "002351e428db1eb1d8656d4ca61947c3519ac3191e1c804d4600cd32093b77ad"
+"checksum tobj 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "42748fb67ae45bff1caad8ff18de46f85347b8e14caf2a29fa6b12d741e15fdb"
 "checksum toml 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 "checksum unicode-xid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "826e7639553986605ec5979c7dd957c7895e93eabed50ab2ffa7f6128a75097c"

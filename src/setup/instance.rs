@@ -40,12 +40,13 @@ pub fn create(
     let mut debug_utils_messenger_create_info = debug_utils::populate_debug_messenger_create_info();
 
     let mut instance_create_info_builder =
-        vk::InstanceCreateInfo::builder().application_info(&application_info);
+        vk::InstanceCreateInfo::builder()
+            .application_info(&application_info)
+            .enabled_extension_names(&enabled_extension_names);
 
     if enable_validation_layers {
         instance_create_info_builder = instance_create_info_builder
             .enabled_layer_names(&enabled_layer_names)
-            .enabled_extension_names(&enabled_extension_names)
             .push_next(&mut debug_utils_messenger_create_info);
     }
 
