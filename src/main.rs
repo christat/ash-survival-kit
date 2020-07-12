@@ -85,6 +85,7 @@ struct VulkanApp {
     texture_image_view: vk::ImageView,
     texture_sampler: vk::Sampler,
     texture_image_memory: vk::DeviceMemory,
+    texture_image_mip_levels: u32,
 
     depth_image: vk::Image,
     depth_image_view: vk::ImageView,
@@ -142,15 +143,20 @@ impl VulkanApp {
         let framebuffers =
             setup::framebuffers::create(&device, &swapchain_data, render_pass, &depth_image_view);
 
-        let (texture_image, texture_image_memory) = setup::image::create(
+        let (texture_image, texture_image_memory, texture_image_mip_levels) = setup::image::create(
             &instance,
             &device,
             &physical_device,
             command_pool,
             graphics_queue,
         );
-        let texture_image_view = setup::image::create_texture_image_view(&device, texture_image);
-        let texture_sampler = setup::image::create_texture_sampler(&device);
+        let texture_image_view = setup::image::create_texture_image_view(
+            &device,
+            texture_image,
+            texture_image_mip_levels,
+        );
+        let texture_sampler =
+            setup::image::create_texture_sampler(&device, texture_image_mip_levels);
         let (vertices, indices) = setup::model::load();
         let (vertex_buffer, vertex_buffer_memory) = setup::vertex_buffer::create(
             &instance,
@@ -242,6 +248,7 @@ impl VulkanApp {
             depth_image,
             depth_image_view,
             depth_image_memory,
+            texture_image_mip_levels,
         }
     }
 

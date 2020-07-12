@@ -102,6 +102,7 @@ impl SwapchainData {
                 *image,
                 image_format,
                 vk::ImageAspectFlags::COLOR,
+                1,
             ));
             acc
         });
