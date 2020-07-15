@@ -84,9 +84,15 @@ struct VulkanApp {
     texture_image_memory: vk::DeviceMemory,
     _texture_image_mip_levels: u32,
 
+    color_image: vk::Image,
+    color_image_view: vk::ImageView,
+    color_image_memory: vk::DeviceMemory,
+
     depth_image: vk::Image,
     depth_image_view: vk::ImageView,
     depth_image_memory: vk::DeviceMemory,
+
+    msaa_samples: vk::SampleCountFlags,
 }
 
 impl VulkanApp {
@@ -96,7 +102,8 @@ impl VulkanApp {
             setup::validation_layers::initialize(&entry, &instance, enable_validation_layers);
         let surface = Surface::new(&entry, &instance);
         let surface_khr = setup::platform::surface_khr::create(&entry, &instance, window);
-        let physical_device = setup::devices::physical::select(&instance, &surface, surface_khr);
+        let (physical_device, msaa_samples) =
+            setup::devices::physical::select(&instance, &surface, surface_khr);
         let (device, queue_family_indices) = setup::devices::logical::create(
             &instance,
             physical_device,
@@ -113,8 +120,13 @@ impl VulkanApp {
             surface_khr,
             window.outer_size(),
         );
-        let render_pass =
-            setup::render_pass::create(&instance, &device, &physical_device, &swapchain_data);
+        let render_pass = setup::render_pass::create(
+            &instance,
+            &device,
+            &physical_device,
+            &swapchain_data,
+            msaa_samples,
+        );
         let command_pool = setup::command_pool::create(&device, &queue_family_indices);
 
         let descriptor_set_layout = setup::uniform_buffers::create_descriptor_set_layout(&device);
@@ -123,10 +135,21 @@ impl VulkanApp {
             &swapchain_data,
             render_pass,
             &descriptor_set_layout,
+            msaa_samples,
         );
         let graphics_pipeline = pipelines.first().expect("Failed to fetch pipeline!");
         let graphics_queue = unsafe { device.get_device_queue(queue_family_indices.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_family_indices.present, 0) };
+
+        let (color_image, color_image_view, color_image_memory) =
+            setup::image::create_color_resources(
+                &instance,
+                &device,
+                &physical_device,
+                swapchain_data.image_extent,
+                swapchain_data.image_format,
+                msaa_samples,
+            );
 
         let (depth_image, depth_image_view, depth_image_memory) =
             setup::image::create_depth_resources(
@@ -134,10 +157,16 @@ impl VulkanApp {
                 &device,
                 &physical_device,
                 swapchain_data.image_extent,
+                msaa_samples,
             );
 
-        let framebuffers =
-            setup::framebuffers::create(&device, &swapchain_data, render_pass, &depth_image_view);
+        let framebuffers = setup::framebuffers::create(
+            &device,
+            &swapchain_data,
+            render_pass,
+            &color_image_view,
+            &depth_image_view,
+        );
 
         let (texture_image, texture_image_memory, texture_image_mip_levels) = setup::image::create(
             &instance,
@@ -241,10 +270,14 @@ impl VulkanApp {
             texture_image_view,
             texture_sampler,
             texture_image_memory,
+            color_image,
+            color_image_view,
+            color_image_memory,
             depth_image,
             depth_image_view,
             depth_image_memory,
             _texture_image_mip_levels: texture_image_mip_levels,
+            msaa_samples,
         }
     }
 
@@ -456,16 +489,31 @@ impl VulkanApp {
             &self.device,
             &self.physical_device,
             &self.swapchain_data,
+            self.msaa_samples,
         );
         let (pipelines, pipeline_layout) = setup::graphics_pipeline::create(
             &self.device,
             &self.swapchain_data,
             self.render_pass,
             &self.descriptor_set_layout,
+            self.msaa_samples,
         );
         self.pipelines = pipelines;
         self.pipeline_layout = pipeline_layout;
         let graphics_pipeline = self.pipelines.first().expect("Failed to fetch pipeline!");
+
+        let (color_image, color_image_view, color_image_memory) =
+            setup::image::create_color_resources(
+                &self.instance,
+                &self.device,
+                &self.physical_device,
+                self.swapchain_data.image_extent,
+                self.swapchain_data.image_format,
+                self.msaa_samples,
+            );
+        self.color_image = color_image;
+        self.color_image_view = color_image_view;
+        self.color_image_memory = color_image_memory;
 
         let (depth_image, depth_image_view, depth_image_memory) =
             setup::image::create_depth_resources(
@@ -473,6 +521,7 @@ impl VulkanApp {
                 &self.device,
                 &self.physical_device,
                 self.swapchain_data.image_extent,
+                self.msaa_samples,
             );
         self.depth_image = depth_image;
         self.depth_image_view = depth_image_view;
@@ -482,6 +531,7 @@ impl VulkanApp {
             &self.device,
             &self.swapchain_data,
             self.render_pass,
+            &self.color_image_view,
             &self.depth_image_view,
         );
 
@@ -524,6 +574,9 @@ impl VulkanApp {
     }
 
     unsafe fn drop_swapchain(&self) {
+        self.device.destroy_image_view(self.color_image_view, None);
+        self.device.destroy_image(self.color_image, None);
+        self.device.free_memory(self.color_image_memory, None);
         self.device.destroy_image_view(self.depth_image_view, None);
         self.device.destroy_image(self.depth_image, None);
         self.device.free_memory(self.depth_image_memory, None);

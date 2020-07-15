@@ -49,6 +49,7 @@ pub fn create(
         width,
         height,
         mip_levels,
+        vk::SampleCountFlags::TYPE_1,
         vk::Format::R8G8B8A8_SRGB,
         vk::ImageTiling::OPTIMAL,
         vk::ImageUsageFlags::TRANSFER_SRC
@@ -300,6 +301,7 @@ fn create_image(
     width: u32,
     height: u32,
     mip_levels: u32,
+    samples: vk::SampleCountFlags,
     format: vk::Format,
     tiling: vk::ImageTiling,
     usage: vk::ImageUsageFlags,
@@ -321,7 +323,7 @@ fn create_image(
         .initial_layout(vk::ImageLayout::UNDEFINED)
         .usage(usage)
         .sharing_mode(vk::SharingMode::EXCLUSIVE)
-        .samples(vk::SampleCountFlags::TYPE_1)
+        .samples(samples)
         .build();
 
     let image = unsafe {
@@ -547,11 +549,43 @@ pub fn create_image_view(
     }
 }
 
+pub fn create_color_resources(
+    instance: &Instance,
+    device: &Device,
+    physical_device: &vk::PhysicalDevice,
+    swapchain_extent: vk::Extent2D,
+    swapchain_image_format: vk::Format,
+    msaa_samples: vk::SampleCountFlags,
+) -> (vk::Image, vk::ImageView, vk::DeviceMemory) {
+    let (color_image, color_image_memory) = create_image(
+        instance,
+        device,
+        physical_device,
+        swapchain_extent.width,
+        swapchain_extent.height,
+        1,
+        msaa_samples,
+        swapchain_image_format,
+        vk::ImageTiling::OPTIMAL,
+        vk::ImageUsageFlags::TRANSIENT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+        vk::MemoryPropertyFlags::DEVICE_LOCAL,
+    );
+    let color_image_view = create_image_view(
+        device,
+        color_image,
+        swapchain_image_format,
+        vk::ImageAspectFlags::COLOR,
+        1,
+    );
+    (color_image, color_image_view, color_image_memory)
+}
+
 pub fn create_depth_resources(
     instance: &Instance,
     device: &Device,
     physical_device: &vk::PhysicalDevice,
     swapchain_extent: vk::Extent2D,
+    msaa_samples: vk::SampleCountFlags,
 ) -> (vk::Image, vk::ImageView, vk::DeviceMemory) {
     let depth_format = find_depth_format(instance, physical_device);
     let (depth_image, depth_image_memory) = create_image(
@@ -561,6 +595,7 @@ pub fn create_depth_resources(
         swapchain_extent.width,
         swapchain_extent.height,
         1,
+        msaa_samples,
         depth_format,
         vk::ImageTiling::OPTIMAL,
         vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,

@@ -13,6 +13,7 @@ pub fn create(
     swapchain_data: &SwapchainData,
     render_pass: vk::RenderPass,
     descriptor_set_layout: &vk::DescriptorSetLayout,
+    msaa_samples: vk::SampleCountFlags,
 ) -> (Vec<vk::Pipeline>, vk::PipelineLayout) {
     let vert_shader_raw = read_shader(Path::new("src/shaders/vert.spv"));
     let frag_shader_raw = read_shader(Path::new("src/shaders/frag.spv"));
@@ -86,7 +87,7 @@ pub fn create(
 
     let multisampling = vk::PipelineMultisampleStateCreateInfo::builder()
         .sample_shading_enable(false)
-        .rasterization_samples(vk::SampleCountFlags::TYPE_1)
+        .rasterization_samples(msaa_samples)
         .min_sample_shading(1.0)
         .alpha_to_coverage_enable(false)
         .alpha_to_one_enable(false)

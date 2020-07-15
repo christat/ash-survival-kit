@@ -6,7 +6,7 @@ pub fn select(
     instance: &Instance,
     surface: &Surface,
     surface_khr: vk::SurfaceKHR,
-) -> vk::PhysicalDevice {
+) -> (vk::PhysicalDevice, vk::SampleCountFlags) {
     let physical_devices = unsafe {
         instance
             .enumerate_physical_devices()
@@ -28,5 +28,39 @@ pub fn select(
         panic!("No suitable devices found!")
     }
 
-    suitable_devices[0]
+    let device = suitable_devices
+        .first()
+        .expect("Failed to retrieve suitable physical device!")
+        .to_owned();
+    (device, get_max_usable_sample_count(instance, &device))
+}
+
+pub fn get_max_usable_sample_count(
+    instance: &Instance,
+    device: &vk::PhysicalDevice,
+) -> vk::SampleCountFlags {
+    let properties = unsafe { instance.get_physical_device_properties(*device) };
+    let counts = properties.limits.framebuffer_color_sample_counts
+        & properties.limits.framebuffer_depth_sample_counts;
+
+    if counts.contains(vk::SampleCountFlags::TYPE_64) {
+        return vk::SampleCountFlags::TYPE_64;
+    }
+    if counts.contains(vk::SampleCountFlags::TYPE_32) {
+        return vk::SampleCountFlags::TYPE_32;
+    }
+    if counts.contains(vk::SampleCountFlags::TYPE_16) {
+        return vk::SampleCountFlags::TYPE_16;
+    }
+    if counts.contains(vk::SampleCountFlags::TYPE_8) {
+        return vk::SampleCountFlags::TYPE_8;
+    }
+    if counts.contains(vk::SampleCountFlags::TYPE_4) {
+        return vk::SampleCountFlags::TYPE_4;
+    }
+    if counts.contains(vk::SampleCountFlags::TYPE_2) {
+        return vk::SampleCountFlags::TYPE_2;
+    }
+
+    vk::SampleCountFlags::TYPE_1
 }
