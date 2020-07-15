@@ -62,7 +62,7 @@ pub fn create(
         command_pool,
         queue,
         texture_image,
-        vk::Format::R8G8B8A8_SRGB,
+        // vk::Format::R8G8B8A8_SRGB,
         vk::ImageLayout::UNDEFINED,
         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         mip_levels,
@@ -411,7 +411,7 @@ fn transition_image_layout(
     command_pool: vk::CommandPool,
     queue: vk::Queue,
     image: vk::Image,
-    format: vk::Format,
+    // format: vk::Format,
     old_layout: vk::ImageLayout,
     new_layout: vk::ImageLayout,
     mip_levels: u32,
@@ -614,9 +614,9 @@ pub fn find_supported_format(
     panic!("Failed to find supported format!");
 }
 
-pub fn has_stencil_component(format: vk::Format) -> bool {
-    match format {
-        vk::Format::D32_SFLOAT_S8_UINT | vk::Format::D24_UNORM_S8_UINT => true,
-        _ => false,
-    }
-}
+// pub fn has_stencil_component(format: vk::Format) -> bool {
+//     match format {
+//         vk::Format::D32_SFLOAT_S8_UINT | vk::Format::D24_UNORM_S8_UINT => true,
+//         _ => false,
+//     }
+// }

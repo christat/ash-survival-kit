@@ -14,6 +14,7 @@ pub struct Vertex {
 }
 
 impl Vertex {
+    #[allow(dead_code)]
     pub fn new(x: f32, y: f32, z: f32, r: f32, g: f32, b: f32, u: f32, v: f32) -> Self {
         Self {
             position: Vector3 { x, y, z },

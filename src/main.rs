@@ -2,10 +2,7 @@ use std::{error::Error, mem::size_of, ptr::copy_nonoverlapping, time::Instant};
 
 extern crate ash;
 use ash::{
-    extensions::{
-        ext::DebugUtils,
-        khr::{Surface, Win32Surface},
-    },
+    extensions::{ext::DebugUtils, khr::Surface},
     version::{DeviceV1_0, InstanceV1_0},
     vk, Device, Entry, Instance,
 };
@@ -19,7 +16,7 @@ extern crate winapi;
 extern crate winit;
 use winit::{
     dpi::LogicalSize,
-    event::{DeviceEvent, Event, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::desktop::EventLoopExtDesktop,
     window::{Window, WindowBuilder},
@@ -62,7 +59,7 @@ struct VulkanApp {
 
     vertex_buffer: vk::Buffer,
     vertex_buffer_memory: vk::DeviceMemory,
-    vertices: Vec<Vertex>,
+    _vertices: Vec<Vertex>,
 
     index_buffer: vk::Buffer,
     index_buffer_memory: vk::DeviceMemory,
@@ -85,7 +82,7 @@ struct VulkanApp {
     texture_image_view: vk::ImageView,
     texture_sampler: vk::Sampler,
     texture_image_memory: vk::DeviceMemory,
-    texture_image_mip_levels: u32,
+    _texture_image_mip_levels: u32,
 
     depth_image: vk::Image,
     depth_image_view: vk::ImageView,
@@ -108,14 +105,13 @@ impl VulkanApp {
             enable_validation_layers,
         );
 
-        let physical_window_size = window.outer_size();
         let swapchain_data = SwapchainData::new(
             &instance,
             physical_device,
             &device,
             &surface,
             surface_khr,
-            physical_window_size,
+            window.outer_size(),
         );
         let render_pass =
             setup::render_pass::create(&instance, &device, &physical_device, &swapchain_data);
@@ -239,7 +235,7 @@ impl VulkanApp {
             frame_sync_data,
             graphics_queue,
             present_queue,
-            vertices,
+            _vertices: vertices,
             indices,
             texture_image,
             texture_image_view,
@@ -248,7 +244,7 @@ impl VulkanApp {
             depth_image,
             depth_image_view,
             depth_image_memory,
-            texture_image_mip_levels,
+            _texture_image_mip_levels: texture_image_mip_levels,
         }
     }
 
@@ -609,23 +605,23 @@ impl Drop for VulkanApp {
 }
 
 fn main() {
-    let vertices: Vec<Vertex> = vec![
-        // quad 0
-        Vertex::new(-0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0),
-        Vertex::new(0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0),
-        Vertex::new(0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0),
-        Vertex::new(-0.5, 0.5, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0),
-        // quad 1
-        Vertex::new(-0.5, -0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0),
-        Vertex::new(0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 1.0, 0.0),
-        Vertex::new(0.5, 0.5, -0.5, 0.0, 0.0, 1.0, 1.0, 1.0),
-        Vertex::new(-0.5, 0.5, -0.5, 1.0, 1.0, 1.0, 0.0, 1.0),
-    ];
-
-    let indices: Vec<u32> = vec![
-        0, 1, 2, 2, 3, 0, // quad 0
-        4, 5, 6, 6, 7, 4, // quad 1
-    ];
+    // let vertices: Vec<Vertex> = vec![
+    //     // quad 0
+    //     Vertex::new(-0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0),
+    //     Vertex::new(0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0),
+    //     Vertex::new(0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0),
+    //     Vertex::new(-0.5, 0.5, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0),
+    //     // quad 1
+    //     Vertex::new(-0.5, -0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 0.0),
+    //     Vertex::new(0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 1.0, 0.0),
+    //     Vertex::new(0.5, 0.5, -0.5, 0.0, 0.0, 1.0, 1.0, 1.0),
+    //     Vertex::new(-0.5, 0.5, -0.5, 1.0, 1.0, 1.0, 0.0, 1.0),
+    // ];
+    //
+    // let indices: Vec<u32> = vec![
+    //     0, 1, 2, 2, 3, 0, // quad 0
+    //     4, 5, 6, 6, 7, 4, // quad 1
+    // ];
 
     let mut event_loop = EventLoop::new();
     let window = WindowBuilder::new()

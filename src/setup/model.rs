@@ -13,7 +13,7 @@ pub fn load() -> (Vec<Vertex>, Vec<u32>) {
         .expect("Failed to load model!");
 
     for model in models.iter() {
-        let tobj::Model { mesh, name } = model;
+        let tobj::Model { mesh, name: _name } = model;
 
         for i in 0..(mesh.positions.len() / 3) {
             let vertex = Vertex {

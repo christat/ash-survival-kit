@@ -148,7 +148,7 @@ pub fn create(
         //.back(vk::StencilOpState::builder().build())
         .build();
 
-    let mut pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
+    let pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
         .stages(&shader_stages)
         .vertex_input_state(&pipeline_vertex_input_state_create_info)
         .input_assembly_state(&pipeline_input_assembly_state_create_info)

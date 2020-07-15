@@ -1,4 +1,4 @@
-use std::{os::raw::c_void, ptr};
+use std::ptr;
 
 use ash::{extensions::khr::Win32Surface, vk, Entry, Instance};
 
